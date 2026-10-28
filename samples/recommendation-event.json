@@ -1,0 +1,42 @@
+{
+  "id": "__RESOURCE_ID__/providers/Microsoft.Security/assessments/21300918-b2e3-0346-785f-c77ff57d243b",
+  "name": "21300918-b2e3-0346-785f-c77ff57d243b",
+  "type": "Microsoft.Security/assessments",
+  "properties": {
+    "resourceDetails": {
+      "source": "Azure",
+      "id": "__RESOURCE_ID__"
+    },
+    "displayName": "Install endpoint protection solution on virtual machine scale sets",
+    "status": {
+      "code": "Unhealthy",
+      "cause": "SyntheticAcceptanceTest",
+      "description": "Synthetic unhealthy recommendation event used to acceptance-test the notification playbook."
+    },
+    "metadata": {
+      "displayName": "Install endpoint protection solution on virtual machine scale sets",
+      "assessmentType": "BuiltIn",
+      "policyDefinitionId": "/providers/Microsoft.Authorization/policyDefinitions/26a828e1-e88f-464e-bbb3-c134a282b9de",
+      "description": "Install an endpoint protection solution to protect the affected compute resource from threats and vulnerabilities.",
+      "remediationDescription": "Follow your organization's endpoint protection deployment standard and verify that Defender for Cloud reevaluates the resource as healthy.",
+      "severity": "Medium",
+      "categories": [
+        "Compute"
+      ],
+      "threats": [
+        "missingCoverage",
+        "threatResistance"
+      ],
+      "userImpact": "Low",
+      "implementationEffort": "Low",
+      "preview": false
+    },
+    "links": {
+      "azurePortalUri": "https://portal.azure.com/#view/Microsoft_Azure_Security/SecurityMenuBlade/~/Recommendations"
+    },
+    "additionalData": {
+      "sample": true,
+      "subscriptionId": "__SUBSCRIPTION_ID__"
+    }
+  }
+}

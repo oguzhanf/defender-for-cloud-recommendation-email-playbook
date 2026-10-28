@@ -1,0 +1,1520 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-08-01/tenantDeploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.46.1.21595",
+      "templateHash": "8040118707390738890"
+    }
+  },
+  "parameters": {
+    "managementGroupId": {
+      "type": "string",
+      "metadata": {
+        "description": "Management group whose current and future subscriptions receive the Defender for Cloud workflow automation. Use the tenant root management group to cover the full tenant."
+      }
+    },
+    "centralSubscriptionId": {
+      "type": "string",
+      "metadata": {
+        "description": "Subscription that hosts the central Logic App, Office 365 connection, and deduplication storage."
+      }
+    },
+    "location": {
+      "type": "string",
+      "defaultValue": "eastus",
+      "metadata": {
+        "description": "Azure region for the central resources and per-subscription automation resource groups."
+      }
+    },
+    "centralResourceGroupName": {
+      "type": "string",
+      "defaultValue": "rg-mdc-recommendation-email",
+      "metadata": {
+        "description": "Resource group created in the central subscription."
+      }
+    },
+    "logicAppName": {
+      "type": "string",
+      "defaultValue": "la-mdc-recommendation-email",
+      "metadata": {
+        "description": "Central Consumption Logic App name."
+      }
+    },
+    "office365ConnectionName": {
+      "type": "string",
+      "defaultValue": "office365-mdc-recommendations",
+      "metadata": {
+        "description": "Office 365 Outlook API connection name. This OAuth connection must be authorized once after deployment."
+      }
+    },
+    "notificationEmailAddresses": {
+      "type": "string",
+      "minLength": 3,
+      "metadata": {
+        "description": "Semicolon-separated email recipients."
+      }
+    },
+    "ccEmailAddresses": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Optional semicolon-separated CC recipients."
+      }
+    },
+    "emailSubjectPrefix": {
+      "type": "string",
+      "defaultValue": "[[Defender for Cloud]",
+      "metadata": {
+        "description": "Prefix placed at the start of every notification subject."
+      }
+    },
+    "resourceChangeLookbackHours": {
+      "type": "int",
+      "defaultValue": 24,
+      "minValue": 1,
+      "maxValue": 168,
+      "metadata": {
+        "description": "How far back the Logic App queries Azure Resource Graph Change Analysis for potentially related ARM changes."
+      }
+    },
+    "deduplicationRetentionDays": {
+      "type": "int",
+      "defaultValue": 30,
+      "minValue": 1,
+      "maxValue": 365,
+      "metadata": {
+        "description": "Days to retain deduplication markers. Repeated evaluation events for the same resource, recommendation, and state are suppressed during this period."
+      }
+    },
+    "automationResourceGroupName": {
+      "type": "string",
+      "defaultValue": "rg-mdc-workflow-automation",
+      "metadata": {
+        "description": "Resource group created in every governed subscription for the Defender for Cloud automation resource."
+      }
+    },
+    "automationName": {
+      "type": "string",
+      "defaultValue": "mdc-rec-email",
+      "minLength": 3,
+      "maxLength": 24,
+      "metadata": {
+        "description": "Name of the Microsoft.Security/automations resource created in every governed subscription."
+      }
+    },
+    "policyAssignmentName": {
+      "type": "string",
+      "defaultValue": "mdc-rec-email",
+      "minLength": 3,
+      "maxLength": 24,
+      "metadata": {
+        "description": "Name of the management-group policy assignment."
+      }
+    },
+    "deployRemediation": {
+      "type": "bool",
+      "defaultValue": true,
+      "metadata": {
+        "description": "Create an Azure Policy remediation task for subscriptions that already exist under the management group."
+      }
+    },
+    "tags": {
+      "type": "object",
+      "defaultValue": {
+        "workload": "defender-for-cloud-recommendation-notifications",
+        "managedBy": "bicep"
+      },
+      "metadata": {
+        "description": "Tags applied to central resources."
+      }
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "[format('central-{0}', uniqueString(parameters('centralSubscriptionId'), parameters('centralResourceGroupName')))]",
+      "subscriptionId": "[parameters('centralSubscriptionId')]",
+      "location": "[deployment().location]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "resourceGroupName": {
+            "value": "[parameters('centralResourceGroupName')]"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "logicAppName": {
+            "value": "[parameters('logicAppName')]"
+          },
+          "office365ConnectionName": {
+            "value": "[parameters('office365ConnectionName')]"
+          },
+          "notificationEmailAddresses": {
+            "value": "[parameters('notificationEmailAddresses')]"
+          },
+          "ccEmailAddresses": {
+            "value": "[parameters('ccEmailAddresses')]"
+          },
+          "emailSubjectPrefix": {
+            "value": "[parameters('emailSubjectPrefix')]"
+          },
+          "managementGroupId": {
+            "value": "[parameters('managementGroupId')]"
+          },
+          "resourceChangeLookbackHours": {
+            "value": "[parameters('resourceChangeLookbackHours')]"
+          },
+          "deduplicationRetentionDays": {
+            "value": "[parameters('deduplicationRetentionDays')]"
+          },
+          "tags": {
+            "value": "[parameters('tags')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.46.1.21595",
+              "templateHash": "504396658446554196"
+            }
+          },
+          "parameters": {
+            "resourceGroupName": {
+              "type": "string"
+            },
+            "location": {
+              "type": "string"
+            },
+            "logicAppName": {
+              "type": "string"
+            },
+            "office365ConnectionName": {
+              "type": "string"
+            },
+            "notificationEmailAddresses": {
+              "type": "string"
+            },
+            "ccEmailAddresses": {
+              "type": "string"
+            },
+            "emailSubjectPrefix": {
+              "type": "string"
+            },
+            "managementGroupId": {
+              "type": "string"
+            },
+            "resourceChangeLookbackHours": {
+              "type": "int"
+            },
+            "deduplicationRetentionDays": {
+              "type": "int"
+            },
+            "tags": {
+              "type": "object",
+              "defaultValue": {}
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Resources/resourceGroups",
+              "apiVersion": "2024-03-01",
+              "name": "[parameters('resourceGroupName')]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]"
+            },
+            {
+              "type": "Microsoft.Resources/deployments",
+              "apiVersion": "2025-04-01",
+              "name": "[format('resources-{0}', uniqueString(subscription().id, parameters('resourceGroupName')))]",
+              "resourceGroup": "[parameters('resourceGroupName')]",
+              "properties": {
+                "expressionEvaluationOptions": {
+                  "scope": "inner"
+                },
+                "mode": "Incremental",
+                "parameters": {
+                  "location": {
+                    "value": "[parameters('location')]"
+                  },
+                  "logicAppName": {
+                    "value": "[parameters('logicAppName')]"
+                  },
+                  "office365ConnectionName": {
+                    "value": "[parameters('office365ConnectionName')]"
+                  },
+                  "notificationEmailAddresses": {
+                    "value": "[parameters('notificationEmailAddresses')]"
+                  },
+                  "ccEmailAddresses": {
+                    "value": "[parameters('ccEmailAddresses')]"
+                  },
+                  "emailSubjectPrefix": {
+                    "value": "[parameters('emailSubjectPrefix')]"
+                  },
+                  "managementGroupId": {
+                    "value": "[parameters('managementGroupId')]"
+                  },
+                  "resourceChangeLookbackHours": {
+                    "value": "[parameters('resourceChangeLookbackHours')]"
+                  },
+                  "deduplicationRetentionDays": {
+                    "value": "[parameters('deduplicationRetentionDays')]"
+                  },
+                  "tags": {
+                    "value": "[parameters('tags')]"
+                  }
+                },
+                "template": {
+                  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+                  "contentVersion": "1.0.0.0",
+                  "metadata": {
+                    "_generator": {
+                      "name": "bicep",
+                      "version": "0.46.1.21595",
+                      "templateHash": "69793896743528656"
+                    }
+                  },
+                  "parameters": {
+                    "location": {
+                      "type": "string"
+                    },
+                    "logicAppName": {
+                      "type": "string"
+                    },
+                    "office365ConnectionName": {
+                      "type": "string"
+                    },
+                    "notificationEmailAddresses": {
+                      "type": "string"
+                    },
+                    "ccEmailAddresses": {
+                      "type": "string"
+                    },
+                    "emailSubjectPrefix": {
+                      "type": "string"
+                    },
+                    "managementGroupId": {
+                      "type": "string"
+                    },
+                    "resourceChangeLookbackHours": {
+                      "type": "int"
+                    },
+                    "deduplicationRetentionDays": {
+                      "type": "int"
+                    },
+                    "tags": {
+                      "type": "object"
+                    }
+                  },
+                  "variables": {
+                    "$fxv#0": {
+                      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+                      "contentVersion": "1.0.0.0",
+                      "parameters": {
+                        "$connections": {
+                          "defaultValue": {},
+                          "type": "Object"
+                        },
+                        "ccEmailAddresses": {
+                          "type": "String"
+                        },
+                        "emailSubjectPrefix": {
+                          "type": "String"
+                        },
+                        "managementGroupId": {
+                          "type": "String"
+                        },
+                        "notificationEmailAddresses": {
+                          "type": "String"
+                        },
+                        "resourceChangeLookbackHours": {
+                          "type": "Int"
+                        },
+                        "stateContainerName": {
+                          "type": "String"
+                        },
+                        "storageAccountName": {
+                          "type": "String"
+                        }
+                      },
+                      "triggers": {
+                        "manual": {
+                          "inputs": {
+                            "schema": {
+                              "properties": {
+                                "id": {
+                                  "type": "string"
+                                },
+                                "name": {
+                                  "type": "string"
+                                },
+                                "properties": {
+                                  "properties": {
+                                    "displayName": {
+                                      "type": "string"
+                                    },
+                                    "links": {
+                                      "properties": {
+                                        "azurePortalUri": {
+                                          "type": "string"
+                                        }
+                                      },
+                                      "type": "object"
+                                    },
+                                    "metadata": {
+                                      "properties": {
+                                        "assessmentType": {
+                                          "type": "string"
+                                        },
+                                        "categories": {
+                                          "items": {
+                                            "type": "string"
+                                          },
+                                          "type": "array"
+                                        },
+                                        "description": {
+                                          "type": "string"
+                                        },
+                                        "displayName": {
+                                          "type": "string"
+                                        },
+                                        "implementationEffort": {
+                                          "type": "string"
+                                        },
+                                        "policyDefinitionId": {
+                                          "type": "string"
+                                        },
+                                        "preview": {
+                                          "type": "boolean"
+                                        },
+                                        "remediationDescription": {
+                                          "type": "string"
+                                        },
+                                        "severity": {
+                                          "type": "string"
+                                        },
+                                        "threats": {
+                                          "items": {
+                                            "type": "string"
+                                          },
+                                          "type": "array"
+                                        },
+                                        "userImpact": {
+                                          "type": "string"
+                                        }
+                                      },
+                                      "type": "object"
+                                    },
+                                    "resourceDetails": {
+                                      "properties": {
+                                        "id": {
+                                          "type": "string"
+                                        },
+                                        "machineName": {
+                                          "type": "string"
+                                        },
+                                        "source": {
+                                          "type": "string"
+                                        },
+                                        "sourceComputerId": {
+                                          "type": "string"
+                                        },
+                                        "vmuuid": {
+                                          "type": "string"
+                                        },
+                                        "workspaceId": {
+                                          "type": "string"
+                                        }
+                                      },
+                                      "type": "object"
+                                    },
+                                    "status": {
+                                      "properties": {
+                                        "cause": {
+                                          "type": "string"
+                                        },
+                                        "code": {
+                                          "type": "string"
+                                        },
+                                        "description": {
+                                          "type": "string"
+                                        },
+                                        "firstEvaluationDate": {
+                                          "type": "string"
+                                        },
+                                        "statusChangeDate": {
+                                          "type": "string"
+                                        }
+                                      },
+                                      "type": "object"
+                                    }
+                                  },
+                                  "type": "object"
+                                },
+                                "type": {
+                                  "type": "string"
+                                }
+                              },
+                              "type": "object"
+                            }
+                          },
+                          "kind": "Http",
+                          "type": "Request"
+                        }
+                      },
+                      "actions": {
+                        "Initialize_ResourceId": {
+                          "inputs": {
+                            "variables": [
+                              {
+                                "name": "ResourceId",
+                                "type": "string",
+                                "value": "@coalesce(triggerBody()?['properties']?['resourceDetails']?['id'], '')"
+                              }
+                            ]
+                          },
+                          "runAfter": {},
+                          "type": "InitializeVariable"
+                        },
+                        "Initialize_SubscriptionId": {
+                          "inputs": {
+                            "variables": [
+                              {
+                                "name": "SubscriptionId",
+                                "type": "string",
+                                "value": "@if(greater(length(split(if(empty(variables('ResourceId')), coalesce(triggerBody()?['id'], ''), variables('ResourceId')), '/')), 2), split(if(empty(variables('ResourceId')), coalesce(triggerBody()?['id'], ''), variables('ResourceId')), '/')[2], '')"
+                              }
+                            ]
+                          },
+                          "runAfter": {
+                            "Initialize_ResourceId": [
+                              "Succeeded"
+                            ]
+                          },
+                          "type": "InitializeVariable"
+                        },
+                        "Initialize_SubscriptionName": {
+                          "inputs": {
+                            "variables": [
+                              {
+                                "name": "SubscriptionName",
+                                "type": "string",
+                                "value": "@if(empty(variables('SubscriptionId')), 'Not available', variables('SubscriptionId'))"
+                              }
+                            ]
+                          },
+                          "runAfter": {
+                            "Initialize_SubscriptionId": [
+                              "Succeeded"
+                            ]
+                          },
+                          "type": "InitializeVariable"
+                        },
+                        "Initialize_SubscriptionScoreHtml": {
+                          "inputs": {
+                            "variables": [
+                              {
+                                "name": "SubscriptionScoreHtml",
+                                "type": "string",
+                                "value": "<p>Subscription Secure Score is unavailable for this event.</p>"
+                              }
+                            ]
+                          },
+                          "runAfter": {
+                            "Initialize_SubscriptionName": [
+                              "Succeeded"
+                            ]
+                          },
+                          "type": "InitializeVariable"
+                        },
+                        "Initialize_OverallScoreHtml": {
+                          "inputs": {
+                            "variables": [
+                              {
+                                "name": "OverallScoreHtml",
+                                "type": "string",
+                                "value": "<p>Management-group Secure Score is unavailable for this event.</p>"
+                              }
+                            ]
+                          },
+                          "runAfter": {
+                            "Initialize_SubscriptionScoreHtml": [
+                              "Succeeded"
+                            ]
+                          },
+                          "type": "InitializeVariable"
+                        },
+                        "Initialize_ScoreImpactHtml": {
+                          "inputs": {
+                            "variables": [
+                              {
+                                "name": "ScoreImpactHtml",
+                                "type": "string",
+                                "value": "<p>No numeric score-impact estimate is available. The recommendation can be preview, custom, unscored, or not mapped to a classic Secure Score control.</p>"
+                              }
+                            ]
+                          },
+                          "runAfter": {
+                            "Initialize_OverallScoreHtml": [
+                              "Succeeded"
+                            ]
+                          },
+                          "type": "InitializeVariable"
+                        },
+                        "Initialize_ResourceChangesHtml": {
+                          "inputs": {
+                            "variables": [
+                              {
+                                "name": "ResourceChangesHtml",
+                                "type": "string",
+                                "value": "<p>Recent Azure Resource Manager change data is unavailable or not applicable to this resource.</p>"
+                              }
+                            ]
+                          },
+                          "runAfter": {
+                            "Initialize_ScoreImpactHtml": [
+                              "Succeeded"
+                            ]
+                          },
+                          "type": "InitializeVariable"
+                        },
+                        "Initialize_TotalManagementGroupWeight": {
+                          "inputs": {
+                            "variables": [
+                              {
+                                "name": "TotalManagementGroupWeight",
+                                "type": "float",
+                                "value": 0
+                              }
+                            ]
+                          },
+                          "runAfter": {
+                            "Initialize_ResourceChangesHtml": [
+                              "Succeeded"
+                            ]
+                          },
+                          "type": "InitializeVariable"
+                        },
+                        "Create_deduplication_marker": {
+                          "inputs": {
+                            "authentication": {
+                              "audience": "https://storage.azure.com/",
+                              "type": "ManagedServiceIdentity"
+                            },
+                            "body": "@triggerBody()",
+                            "headers": {
+                              "Content-Type": "application/json",
+                              "If-None-Match": "*",
+                              "x-ms-blob-type": "BlockBlob",
+                              "x-ms-date": "@formatDateTime(utcNow(), 'R')",
+                              "x-ms-version": "2023-11-03"
+                            },
+                            "method": "PUT",
+                            "retryPolicy": {
+                              "type": "none"
+                            },
+                            "uri": "@concat('https://', parameters('storageAccountName'), '.blob.core.windows.net/', parameters('stateContainerName'), '/', take(replace(replace(replace(base64(toLower(concat(coalesce(triggerBody()?['name'], 'unknown-assessment'), '|', coalesce(triggerBody()?['properties']?['status']?['code'], 'unknown-status'), '|', if(empty(variables('ResourceId')), coalesce(triggerBody()?['id'], triggerBody()?['properties']?['resourceDetails']?['machineName'], 'unknown-resource'), variables('ResourceId'))))), '/', '_'), '+', '-'), '=', ''), 900), '.json')"
+                          },
+                          "runAfter": {
+                            "Initialize_TotalManagementGroupWeight": [
+                              "Succeeded"
+                            ]
+                          },
+                          "type": "Http"
+                        },
+                        "Only_process_new_event": {
+                          "actions": {
+                            "Enrich_Azure_resource": {
+                              "actions": {
+                                "If_Azure_resource": {
+                                  "actions": {
+                                    "Find_matching_control_definition": {
+                                      "inputs": {
+                                        "from": "@body('Get_secure_score_control_definitions')?['value']",
+                                        "where": "@and(not(empty(triggerBody()?['name'])), contains(toLower(string(item()?['properties']?['assessmentDefinitions'])), toLower(triggerBody()?['name'])))"
+                                      },
+                                      "runAfter": {
+                                        "Get_secure_score_control_definitions": [
+                                          "Succeeded"
+                                        ]
+                                      },
+                                      "type": "Query"
+                                    },
+                                    "Find_matching_control_score": {
+                                      "inputs": {
+                                        "from": "@body('Get_subscription_secure_score_controls')?['value']",
+                                        "where": "@if(empty(body('Find_matching_control_definition')), false, equals(toLower(item()?['name']), toLower(first(body('Find_matching_control_definition'))?['name'])))"
+                                      },
+                                      "runAfter": {
+                                        "Find_matching_control_definition": [
+                                          "Succeeded"
+                                        ],
+                                        "Get_subscription_secure_score_controls": [
+                                          "Succeeded"
+                                        ]
+                                      },
+                                      "type": "Query"
+                                    },
+                                    "Calculate_score_impact": {
+                                      "actions": {
+                                        "Set_ScoreImpactHtml": {
+                                          "inputs": {
+                                            "name": "ScoreImpactHtml",
+                                            "value": "@concat('<p><strong>Mapped security control:</strong> ', coalesce(first(body('Find_matching_control_score'))?['properties']?['displayName'], first(body('Find_matching_control_definition'))?['properties']?['displayName'], 'Unknown'), '</p><p><strong>Control score now:</strong> ', formatNumber(float(coalesce(first(body('Find_matching_control_score'))?['properties']?['score']?['current'], 0)), '0.00'), ' / ', formatNumber(float(coalesce(first(body('Find_matching_control_score'))?['properties']?['score']?['max'], 0)), '0.00'), ' points across ', string(add(int(coalesce(first(body('Find_matching_control_score'))?['properties']?['healthyResourceCount'], 0)), int(coalesce(first(body('Find_matching_control_score'))?['properties']?['unhealthyResourceCount'], 0)))), ' scored resources.</p><p><strong>Estimated maximum difference attributable to this affected resource:</strong> ', formatNumber(div(float(first(body('Find_matching_control_score'))?['properties']?['score']?['max']), float(add(int(coalesce(first(body('Find_matching_control_score'))?['properties']?['healthyResourceCount'], 0)), int(coalesce(first(body('Find_matching_control_score'))?['properties']?['unhealthyResourceCount'], 0))))), '0.000'), ' control points; ', formatNumber(mul(div(div(float(first(body('Find_matching_control_score'))?['properties']?['score']?['max']), float(add(int(coalesce(first(body('Find_matching_control_score'))?['properties']?['healthyResourceCount'], 0)), int(coalesce(first(body('Find_matching_control_score'))?['properties']?['unhealthyResourceCount'], 0))))), float(body('Get_subscription_secure_score')?['properties']?['score']?['max'])), 100), '0.000'), ' percentage points for this subscription', if(greater(float(variables('TotalManagementGroupWeight')), 0), concat('; ', formatNumber(mul(mul(div(div(float(first(body('Find_matching_control_score'))?['properties']?['score']?['max']), float(add(int(coalesce(first(body('Find_matching_control_score'))?['properties']?['healthyResourceCount'], 0)), int(coalesce(first(body('Find_matching_control_score'))?['properties']?['unhealthyResourceCount'], 0))))), float(body('Get_subscription_secure_score')?['properties']?['score']?['max'])), 100), div(float(body('Get_subscription_secure_score')?['properties']?['weight']), float(variables('TotalManagementGroupWeight')))), '0.000'), ' weighted percentage points for the selected management group'), ''), '.</p><p>This is a resource-level estimate, not a forecast. Defender recalculates controls about every eight hours, the current score can already include the finding, preview and custom recommendations do not score, and the management-group score is weighted.</p>')"
+                                          },
+                                          "runAfter": {},
+                                          "type": "SetVariable"
+                                        }
+                                      },
+                                      "else": {
+                                        "actions": {}
+                                      },
+                                      "expression": {
+                                        "and": [
+                                          {
+                                            "not": {
+                                              "equals": [
+                                                "@empty(body('Find_matching_control_score'))",
+                                                true
+                                              ]
+                                            }
+                                          },
+                                          {
+                                            "not": {
+                                              "equals": [
+                                                "@coalesce(triggerBody()?['properties']?['metadata']?['preview'], false)",
+                                                true
+                                              ]
+                                            }
+                                          },
+                                          {
+                                            "equals": [
+                                              "@toLower(coalesce(triggerBody()?['properties']?['metadata']?['assessmentType'], ''))",
+                                              "builtin"
+                                            ]
+                                          },
+                                          {
+                                            "greater": [
+                                              "@add(int(coalesce(first(body('Find_matching_control_score'))?['properties']?['healthyResourceCount'], 0)), int(coalesce(first(body('Find_matching_control_score'))?['properties']?['unhealthyResourceCount'], 0)))",
+                                              0
+                                            ]
+                                          },
+                                          {
+                                            "greater": [
+                                              "@float(coalesce(first(body('Find_matching_control_score'))?['properties']?['score']?['max'], 0))",
+                                              0
+                                            ]
+                                          },
+                                          {
+                                            "greater": [
+                                              "@float(coalesce(body('Get_subscription_secure_score')?['properties']?['score']?['max'], 0))",
+                                              0
+                                            ]
+                                          }
+                                        ]
+                                      },
+                                      "runAfter": {
+                                        "Find_matching_control_score": [
+                                          "Succeeded"
+                                        ],
+                                        "Get_subscription_secure_score": [
+                                          "Succeeded"
+                                        ],
+                                        "Set_TotalManagementGroupWeight": [
+                                          "Succeeded",
+                                          "Failed",
+                                          "Skipped",
+                                          "TimedOut"
+                                        ]
+                                      },
+                                      "type": "If"
+                                    },
+                                    "Get_management_group_secure_score": {
+                                      "inputs": {
+                                        "authentication": {
+                                          "audience": "https://management.azure.com/",
+                                          "type": "ManagedServiceIdentity"
+                                        },
+                                        "body": {
+                                          "managementGroups": [
+                                            "@parameters('managementGroupId')"
+                                          ],
+                                          "options": {
+                                            "resultFormat": "objectArray"
+                                          },
+                                          "query": "securityresources | where type =~ 'microsoft.security/securescores' and name =~ 'ascScore' | extend scorePercentage=todouble(properties.score.percentage), scoreWeight=todouble(properties.weight) | where isnotnull(scorePercentage) and isnotnull(scoreWeight) and scoreWeight > 0 | extend weightedScore=scorePercentage * scoreWeight | summarize overallPercentage=round(100.0 * sum(weightedScore) / sum(scoreWeight), 2), totalWeight=sum(scoreWeight), subscriptionCount=dcount(subscriptionId)"
+                                        },
+                                        "method": "POST",
+                                        "uri": "https://management.azure.com/providers/Microsoft.ResourceGraph/resources?api-version=2024-04-01"
+                                      },
+                                      "runAfter": {},
+                                      "type": "Http"
+                                    },
+                                    "Get_recent_resource_changes": {
+                                      "inputs": {
+                                        "authentication": {
+                                          "audience": "https://management.azure.com/",
+                                          "type": "ManagedServiceIdentity"
+                                        },
+                                        "body": {
+                                          "$top": 5,
+                                          "fetchPropertyChanges": true,
+                                          "interval": {
+                                            "end": "@utcNow()",
+                                            "start": "@addHours(utcNow(), sub(0, parameters('resourceChangeLookbackHours')))"
+                                          },
+                                          "resourceIds": [
+                                            "@variables('ResourceId')"
+                                          ]
+                                        },
+                                        "method": "POST",
+                                        "uri": "https://management.azure.com/providers/Microsoft.ResourceGraph/resourceChanges?api-version=2020-09-01-preview"
+                                      },
+                                      "runAfter": {},
+                                      "type": "Http"
+                                    },
+                                    "Get_secure_score_control_definitions": {
+                                      "inputs": {
+                                        "authentication": {
+                                          "audience": "https://management.azure.com/",
+                                          "type": "ManagedServiceIdentity"
+                                        },
+                                        "method": "GET",
+                                        "uri": "https://management.azure.com/providers/Microsoft.Security/secureScoreControlDefinitions?api-version=2020-01-01"
+                                      },
+                                      "runAfter": {},
+                                      "type": "Http"
+                                    },
+                                    "Get_subscription": {
+                                      "inputs": {
+                                        "authentication": {
+                                          "audience": "https://management.azure.com/",
+                                          "type": "ManagedServiceIdentity"
+                                        },
+                                        "method": "GET",
+                                        "uri": "@concat('https://management.azure.com/subscriptions/', variables('SubscriptionId'), '?api-version=2020-01-01')"
+                                      },
+                                      "runAfter": {},
+                                      "type": "Http"
+                                    },
+                                    "Get_subscription_secure_score": {
+                                      "inputs": {
+                                        "authentication": {
+                                          "audience": "https://management.azure.com/",
+                                          "type": "ManagedServiceIdentity"
+                                        },
+                                        "method": "GET",
+                                        "uri": "@concat('https://management.azure.com/subscriptions/', variables('SubscriptionId'), '/providers/Microsoft.Security/secureScores/ascScore?api-version=2020-01-01')"
+                                      },
+                                      "runAfter": {},
+                                      "type": "Http"
+                                    },
+                                    "Get_subscription_secure_score_controls": {
+                                      "inputs": {
+                                        "authentication": {
+                                          "audience": "https://management.azure.com/",
+                                          "type": "ManagedServiceIdentity"
+                                        },
+                                        "method": "GET",
+                                        "uri": "@concat('https://management.azure.com/subscriptions/', variables('SubscriptionId'), '/providers/Microsoft.Security/secureScores/ascScore/secureScoreControls?api-version=2020-01-01&$expand=definition')"
+                                      },
+                                      "runAfter": {},
+                                      "type": "Http"
+                                    },
+                                    "Set_OverallScoreHtml": {
+                                      "inputs": {
+                                        "name": "OverallScoreHtml",
+                                        "value": "@if(empty(body('Get_management_group_secure_score')?['data']), '<p>Management-group Secure Score is unavailable for this event.</p>', concat('<p><strong>Selected management-group score:</strong> ', formatNumber(float(first(body('Get_management_group_secure_score')?['data'])?['overallPercentage']), '0.00'), '% across ', string(first(body('Get_management_group_secure_score')?['data'])?['subscriptionCount']), ' scored subscriptions. This is the classic weighted Secure Score calculated from Azure Resource Graph data.</p>'))"
+                                      },
+                                      "runAfter": {
+                                        "Get_management_group_secure_score": [
+                                          "Succeeded"
+                                        ]
+                                      },
+                                      "type": "SetVariable"
+                                    },
+                                    "Set_ResourceChangesHtml": {
+                                      "inputs": {
+                                        "name": "ResourceChangesHtml",
+                                        "value": "@if(empty(body('Get_recent_resource_changes')?['changes']), concat('<p>No Azure Resource Manager changes were recorded for this resource during the last ', string(parameters('resourceChangeLookbackHours')), ' hours.</p>'), concat('<pre style=\"white-space:pre-wrap;word-break:break-word;background:#f6f8fa;border:1px solid #d0d7de;padding:12px;\">', replace(replace(replace(string(take(body('Get_recent_resource_changes')?['changes'], 5)), '&', '&amp;'), '<', '&lt;'), '>', '&gt;'), '</pre>'))"
+                                      },
+                                      "runAfter": {
+                                        "Get_recent_resource_changes": [
+                                          "Succeeded"
+                                        ]
+                                      },
+                                      "type": "SetVariable"
+                                    },
+                                    "Set_SubscriptionName": {
+                                      "inputs": {
+                                        "name": "SubscriptionName",
+                                        "value": "@coalesce(body('Get_subscription')?['displayName'], variables('SubscriptionId'))"
+                                      },
+                                      "runAfter": {
+                                        "Get_subscription": [
+                                          "Succeeded"
+                                        ]
+                                      },
+                                      "type": "SetVariable"
+                                    },
+                                    "Set_SubscriptionScoreHtml": {
+                                      "inputs": {
+                                        "name": "SubscriptionScoreHtml",
+                                        "value": "@concat('<p><strong>Subscription score:</strong> ', formatNumber(mul(float(body('Get_subscription_secure_score')?['properties']?['score']?['percentage']), 100), '0.00'), '% (', formatNumber(float(body('Get_subscription_secure_score')?['properties']?['score']?['current']), '0.00'), ' / ', formatNumber(float(body('Get_subscription_secure_score')?['properties']?['score']?['max']), '0.00'), ' points; aggregation weight ', string(body('Get_subscription_secure_score')?['properties']?['weight']), ').</p>')"
+                                      },
+                                      "runAfter": {
+                                        "Get_subscription_secure_score": [
+                                          "Succeeded"
+                                        ]
+                                      },
+                                      "type": "SetVariable"
+                                    },
+                                    "Set_TotalManagementGroupWeight": {
+                                      "inputs": {
+                                        "name": "TotalManagementGroupWeight",
+                                        "value": "@float(if(empty(body('Get_management_group_secure_score')?['data']), 0, coalesce(first(body('Get_management_group_secure_score')?['data'])?['totalWeight'], 0)))"
+                                      },
+                                      "runAfter": {
+                                        "Get_management_group_secure_score": [
+                                          "Succeeded"
+                                        ]
+                                      },
+                                      "type": "SetVariable"
+                                    }
+                                  },
+                                  "else": {
+                                    "actions": {}
+                                  },
+                                  "expression": {
+                                    "and": [
+                                      {
+                                        "equals": [
+                                          "@toLower(coalesce(triggerBody()?['properties']?['resourceDetails']?['source'], ''))",
+                                          "azure"
+                                        ]
+                                      },
+                                      {
+                                        "not": {
+                                          "equals": [
+                                            "@empty(variables('SubscriptionId'))",
+                                            true
+                                          ]
+                                        }
+                                      },
+                                      {
+                                        "not": {
+                                          "equals": [
+                                            "@empty(variables('ResourceId'))",
+                                            true
+                                          ]
+                                        }
+                                      }
+                                    ]
+                                  },
+                                  "runAfter": {},
+                                  "type": "If"
+                                }
+                              },
+                              "runAfter": {},
+                              "type": "Scope"
+                            },
+                            "Send_recommendation_email": {
+                              "inputs": {
+                                "body": {
+                                  "Attachments": [
+                                    {
+                                      "ContentBytes": "@base64(string(triggerBody()))",
+                                      "Name": "@concat('defender-recommendation-', coalesce(triggerBody()?['name'], 'event'), '-', formatDateTime(utcNow(), 'yyyyMMddTHHmmssZ'), '.json')"
+                                    }
+                                  ],
+                                  "Body": "<html><body style=\"font-family:Segoe UI,Arial,sans-serif;color:#24292f;\"><div style=\"max-width:980px;margin:auto;\"><h2 style=\"color:#b42318;\">Microsoft Defender for Cloud recommendation raised</h2><p><strong>Detected:</strong> @{utcNow()}</p><table style=\"border-collapse:collapse;width:100%;\"><tr><td style=\"border:1px solid #d0d7de;padding:8px;font-weight:600;\">Recommendation</td><td style=\"border:1px solid #d0d7de;padding:8px;\">@{coalesce(triggerBody()?['properties']?['displayName'], triggerBody()?['properties']?['metadata']?['displayName'], 'Not supplied')}</td></tr><tr><td style=\"border:1px solid #d0d7de;padding:8px;font-weight:600;\">Severity</td><td style=\"border:1px solid #d0d7de;padding:8px;\">@{coalesce(triggerBody()?['properties']?['metadata']?['severity'], 'Not supplied')}</td></tr><tr><td style=\"border:1px solid #d0d7de;padding:8px;font-weight:600;\">Status</td><td style=\"border:1px solid #d0d7de;padding:8px;\">@{coalesce(triggerBody()?['properties']?['status']?['code'], 'Not supplied')}</td></tr><tr><td style=\"border:1px solid #d0d7de;padding:8px;font-weight:600;\">Status cause</td><td style=\"border:1px solid #d0d7de;padding:8px;\">@{coalesce(triggerBody()?['properties']?['status']?['cause'], 'Not supplied')}</td></tr><tr><td style=\"border:1px solid #d0d7de;padding:8px;font-weight:600;\">Status detail</td><td style=\"border:1px solid #d0d7de;padding:8px;\">@{coalesce(triggerBody()?['properties']?['status']?['description'], 'Not supplied')}</td></tr><tr><td style=\"border:1px solid #d0d7de;padding:8px;font-weight:600;\">Subscription</td><td style=\"border:1px solid #d0d7de;padding:8px;\">@{variables('SubscriptionName')} (@{variables('SubscriptionId')})</td></tr><tr><td style=\"border:1px solid #d0d7de;padding:8px;font-weight:600;\">Affected resource</td><td style=\"border:1px solid #d0d7de;padding:8px;\">@{if(empty(variables('ResourceId')), coalesce(triggerBody()?['properties']?['resourceDetails']?['machineName'], 'Not supplied'), last(split(variables('ResourceId'), '/')))}</td></tr><tr><td style=\"border:1px solid #d0d7de;padding:8px;font-weight:600;\">Resource source</td><td style=\"border:1px solid #d0d7de;padding:8px;\">@{coalesce(triggerBody()?['properties']?['resourceDetails']?['source'], 'Not supplied')}</td></tr><tr><td style=\"border:1px solid #d0d7de;padding:8px;font-weight:600;\">Resource ID</td><td style=\"border:1px solid #d0d7de;padding:8px;word-break:break-all;\">@{if(empty(variables('ResourceId')), 'Not supplied', variables('ResourceId'))}</td></tr><tr><td style=\"border:1px solid #d0d7de;padding:8px;font-weight:600;\">Assessment ID</td><td style=\"border:1px solid #d0d7de;padding:8px;word-break:break-all;\">@{coalesce(triggerBody()?['name'], 'Not supplied')}</td></tr><tr><td style=\"border:1px solid #d0d7de;padding:8px;font-weight:600;\">Assessment type</td><td style=\"border:1px solid #d0d7de;padding:8px;\">@{coalesce(triggerBody()?['properties']?['metadata']?['assessmentType'], 'Not supplied')}</td></tr><tr><td style=\"border:1px solid #d0d7de;padding:8px;font-weight:600;\">Preview</td><td style=\"border:1px solid #d0d7de;padding:8px;\">@{string(coalesce(triggerBody()?['properties']?['metadata']?['preview'], false))}</td></tr><tr><td style=\"border:1px solid #d0d7de;padding:8px;font-weight:600;\">Categories</td><td style=\"border:1px solid #d0d7de;padding:8px;\">@{join(coalesce(triggerBody()?['properties']?['metadata']?['categories'], createArray('Not supplied')), ', ')}</td></tr><tr><td style=\"border:1px solid #d0d7de;padding:8px;font-weight:600;\">Threats</td><td style=\"border:1px solid #d0d7de;padding:8px;\">@{join(coalesce(triggerBody()?['properties']?['metadata']?['threats'], createArray('Not supplied')), ', ')}</td></tr><tr><td style=\"border:1px solid #d0d7de;padding:8px;font-weight:600;\">Implementation effort</td><td style=\"border:1px solid #d0d7de;padding:8px;\">@{coalesce(triggerBody()?['properties']?['metadata']?['implementationEffort'], 'Not supplied')}</td></tr><tr><td style=\"border:1px solid #d0d7de;padding:8px;font-weight:600;\">User impact</td><td style=\"border:1px solid #d0d7de;padding:8px;\">@{coalesce(triggerBody()?['properties']?['metadata']?['userImpact'], 'Not supplied')}</td></tr><tr><td style=\"border:1px solid #d0d7de;padding:8px;font-weight:600;\">Policy definition</td><td style=\"border:1px solid #d0d7de;padding:8px;word-break:break-all;\">@{coalesce(triggerBody()?['properties']?['metadata']?['policyDefinitionId'], 'Not supplied')}</td></tr></table><h3>Description</h3><div>@{coalesce(triggerBody()?['properties']?['metadata']?['description'], 'No description supplied.')}</div><h3>Recommended remediation</h3><div>@{coalesce(triggerBody()?['properties']?['metadata']?['remediationDescription'], 'No remediation guidance supplied.')}</div><h3>What changed in the environment</h3><p><strong>Defender assessment change:</strong> the affected resource is currently evaluated as <strong>@{coalesce(triggerBody()?['properties']?['status']?['code'], 'unknown')}</strong>. The recommendation event does not guarantee an exact before/after configuration diff. The recent ARM changes below are best-effort correlation data and might not be the cause of the recommendation.</p>@{variables('ResourceChangesHtml')}<h3>Secure Score</h3><p><strong>Effect of sending this notification:</strong> 0 points. Email delivery itself never changes Secure Score.</p>@{variables('SubscriptionScoreHtml')}@{variables('OverallScoreHtml')}@{variables('ScoreImpactHtml')}<p>Classic Secure Score controls are normally recalculated about every eight hours. The newer risk-based Cloud Secure Score in the Defender portal is a different model and is not projected by this workflow.</p><h3>Open in Defender for Cloud</h3><p><a href=\"@{coalesce(triggerBody()?['properties']?['links']?['azurePortalUri'], 'https://portal.azure.com/#view/Microsoft_Azure_Security/SecurityMenuBlade/~/Recommendations')}\">View recommendation in Azure portal</a></p><p style=\"font-size:12px;color:#57606a;\"><strong>Deduplication:</strong> @{if(equals(outputs('Create_deduplication_marker')?['statusCode'], 201), 'marker created successfully.', concat('marker creation did not return HTTP 201 (status ', string(coalesce(outputs('Create_deduplication_marker')?['statusCode'], 'unavailable')), '); this email was sent to avoid losing the alert.'))}</p><p style=\"font-size:12px;color:#57606a;\">The complete Defender event payload is attached as JSON. Duplicate events for the same resource, recommendation, and state are suppressed for the configured retention period.</p></div></body></html>",
+                                  "Cc": "@parameters('ccEmailAddresses')",
+                                  "Importance": "@if(equals(toLower(coalesce(triggerBody()?['properties']?['metadata']?['severity'], '')), 'high'), 'High', 'Normal')",
+                                  "Subject": "@concat(parameters('emailSubjectPrefix'), ' [', coalesce(triggerBody()?['properties']?['metadata']?['severity'], 'Unknown'), '] ', coalesce(triggerBody()?['properties']?['displayName'], triggerBody()?['properties']?['metadata']?['displayName'], 'Security recommendation'), ' - ', if(empty(variables('ResourceId')), coalesce(triggerBody()?['properties']?['resourceDetails']?['machineName'], 'Unknown resource'), last(split(variables('ResourceId'), '/'))))",
+                                  "To": "@parameters('notificationEmailAddresses')"
+                                },
+                                "host": {
+                                  "connection": {
+                                    "name": "@parameters('$connections')['office365']['connectionId']"
+                                  }
+                                },
+                                "method": "post",
+                                "path": "/v2/Mail"
+                              },
+                              "runAfter": {
+                                "Enrich_Azure_resource": [
+                                  "Succeeded",
+                                  "Failed",
+                                  "Skipped",
+                                  "TimedOut"
+                                ]
+                              },
+                              "type": "ApiConnection"
+                            }
+                          },
+                          "else": {
+                            "actions": {
+                              "Terminate_duplicate_event": {
+                                "inputs": {
+                                  "runStatus": "Succeeded"
+                                },
+                                "runAfter": {},
+                                "type": "Terminate"
+                              }
+                            }
+                          },
+                          "expression": {
+                            "not": {
+                              "equals": [
+                                "@outputs('Create_deduplication_marker')?['statusCode']",
+                                412
+                              ]
+                            }
+                          },
+                          "runAfter": {
+                            "Create_deduplication_marker": [
+                              "Succeeded",
+                              "Failed",
+                              "TimedOut"
+                            ]
+                          },
+                          "type": "If"
+                        }
+                      },
+                      "outputs": {}
+                    },
+                    "stateContainerName": "recommendation-state",
+                    "storageAccountName": "[take(format('stmdc{0}', uniqueString(subscription().id, resourceGroup().id, parameters('logicAppName'))), 24)]",
+                    "office365ManagedApiId": "[subscriptionResourceId('Microsoft.Web/locations/managedApis', parameters('location'), 'office365')]",
+                    "storageBlobDataContributorRoleId": "ba92f5b4-2d11-453d-a403-e96b0029c9fe"
+                  },
+                  "resources": [
+                    {
+                      "type": "Microsoft.Storage/storageAccounts",
+                      "apiVersion": "2023-05-01",
+                      "name": "[variables('storageAccountName')]",
+                      "location": "[parameters('location')]",
+                      "tags": "[parameters('tags')]",
+                      "sku": {
+                        "name": "Standard_LRS"
+                      },
+                      "kind": "StorageV2",
+                      "properties": {
+                        "accessTier": "Hot",
+                        "allowBlobPublicAccess": false,
+                        "allowCrossTenantReplication": false,
+                        "allowSharedKeyAccess": false,
+                        "defaultToOAuthAuthentication": true,
+                        "minimumTlsVersion": "TLS1_2",
+                        "publicNetworkAccess": "Enabled",
+                        "supportsHttpsTrafficOnly": true
+                      }
+                    },
+                    {
+                      "type": "Microsoft.Storage/storageAccounts/blobServices",
+                      "apiVersion": "2023-05-01",
+                      "name": "[format('{0}/{1}', variables('storageAccountName'), 'default')]",
+                      "dependsOn": [
+                        "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
+                      ]
+                    },
+                    {
+                      "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+                      "apiVersion": "2023-05-01",
+                      "name": "[format('{0}/{1}/{2}', variables('storageAccountName'), 'default', variables('stateContainerName'))]",
+                      "properties": {
+                        "publicAccess": "None"
+                      },
+                      "dependsOn": [
+                        "[resourceId('Microsoft.Storage/storageAccounts/blobServices', variables('storageAccountName'), 'default')]"
+                      ]
+                    },
+                    {
+                      "type": "Microsoft.Storage/storageAccounts/managementPolicies",
+                      "apiVersion": "2023-05-01",
+                      "name": "[format('{0}/{1}', variables('storageAccountName'), 'default')]",
+                      "properties": {
+                        "policy": {
+                          "rules": [
+                            {
+                              "name": "delete-expired-recommendation-markers",
+                              "enabled": true,
+                              "type": "Lifecycle",
+                              "definition": {
+                                "actions": {
+                                  "baseBlob": {
+                                    "delete": {
+                                      "daysAfterModificationGreaterThan": "[parameters('deduplicationRetentionDays')]"
+                                    }
+                                  }
+                                },
+                                "filters": {
+                                  "blobTypes": [
+                                    "blockBlob"
+                                  ],
+                                  "prefixMatch": [
+                                    "[format('{0}/', variables('stateContainerName'))]"
+                                  ]
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      },
+                      "dependsOn": [
+                        "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
+                      ]
+                    },
+                    {
+                      "type": "Microsoft.Web/connections",
+                      "apiVersion": "2016-06-01",
+                      "name": "[parameters('office365ConnectionName')]",
+                      "location": "[parameters('location')]",
+                      "tags": "[parameters('tags')]",
+                      "properties": {
+                        "api": {
+                          "id": "[variables('office365ManagedApiId')]"
+                        },
+                        "displayName": "[parameters('office365ConnectionName')]",
+                        "parameterValues": {}
+                      }
+                    },
+                    {
+                      "type": "Microsoft.Logic/workflows",
+                      "apiVersion": "2019-05-01",
+                      "name": "[parameters('logicAppName')]",
+                      "location": "[parameters('location')]",
+                      "tags": "[union(parameters('tags'), createObject('LogicAppsCategory', 'security'))]",
+                      "identity": {
+                        "type": "SystemAssigned"
+                      },
+                      "properties": {
+                        "state": "Enabled",
+                        "definition": "[variables('$fxv#0')]",
+                        "parameters": {
+                          "$connections": {
+                            "value": {
+                              "office365": {
+                                "connectionId": "[resourceId('Microsoft.Web/connections', parameters('office365ConnectionName'))]",
+                                "connectionName": "[parameters('office365ConnectionName')]",
+                                "id": "[variables('office365ManagedApiId')]"
+                              }
+                            }
+                          },
+                          "notificationEmailAddresses": {
+                            "value": "[parameters('notificationEmailAddresses')]"
+                          },
+                          "ccEmailAddresses": {
+                            "value": "[parameters('ccEmailAddresses')]"
+                          },
+                          "emailSubjectPrefix": {
+                            "value": "[parameters('emailSubjectPrefix')]"
+                          },
+                          "managementGroupId": {
+                            "value": "[parameters('managementGroupId')]"
+                          },
+                          "resourceChangeLookbackHours": {
+                            "value": "[parameters('resourceChangeLookbackHours')]"
+                          },
+                          "stateContainerName": {
+                            "value": "[variables('stateContainerName')]"
+                          },
+                          "storageAccountName": {
+                            "value": "[variables('storageAccountName')]"
+                          }
+                        }
+                      },
+                      "dependsOn": [
+                        "[resourceId('Microsoft.Web/connections', parameters('office365ConnectionName'))]",
+                        "[resourceId('Microsoft.Storage/storageAccounts/blobServices/containers', variables('storageAccountName'), 'default', variables('stateContainerName'))]"
+                      ]
+                    },
+                    {
+                      "type": "Microsoft.Authorization/roleAssignments",
+                      "apiVersion": "2022-04-01",
+                      "scope": "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]",
+                      "name": "[guid(resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName')), resourceId('Microsoft.Logic/workflows', parameters('logicAppName')), variables('storageBlobDataContributorRoleId'))]",
+                      "properties": {
+                        "principalId": "[reference(resourceId('Microsoft.Logic/workflows', parameters('logicAppName')), '2019-05-01', 'full').identity.principalId]",
+                        "principalType": "ServicePrincipal",
+                        "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', variables('storageBlobDataContributorRoleId'))]"
+                      },
+                      "dependsOn": [
+                        "[resourceId('Microsoft.Logic/workflows', parameters('logicAppName'))]",
+                        "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
+                      ]
+                    }
+                  ],
+                  "outputs": {
+                    "logicAppResourceId": {
+                      "type": "string",
+                      "value": "[resourceId('Microsoft.Logic/workflows', parameters('logicAppName'))]"
+                    },
+                    "logicAppPrincipalId": {
+                      "type": "string",
+                      "value": "[reference(resourceId('Microsoft.Logic/workflows', parameters('logicAppName')), '2019-05-01', 'full').identity.principalId]"
+                    },
+                    "office365ConnectionResourceId": {
+                      "type": "string",
+                      "value": "[resourceId('Microsoft.Web/connections', parameters('office365ConnectionName'))]"
+                    },
+                    "storageAccountResourceId": {
+                      "type": "string",
+                      "value": "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
+                    }
+                  }
+                }
+              },
+              "dependsOn": [
+                "[subscriptionResourceId('Microsoft.Resources/resourceGroups', parameters('resourceGroupName'))]"
+              ]
+            }
+          ],
+          "outputs": {
+            "resourceGroupId": {
+              "type": "string",
+              "value": "[subscriptionResourceId('Microsoft.Resources/resourceGroups', parameters('resourceGroupName'))]"
+            },
+            "logicAppResourceId": {
+              "type": "string",
+              "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('resourceGroupName')), 'Microsoft.Resources/deployments', format('resources-{0}', uniqueString(subscription().id, parameters('resourceGroupName')))), '2025-04-01').outputs.logicAppResourceId.value]"
+            },
+            "logicAppPrincipalId": {
+              "type": "string",
+              "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('resourceGroupName')), 'Microsoft.Resources/deployments', format('resources-{0}', uniqueString(subscription().id, parameters('resourceGroupName')))), '2025-04-01').outputs.logicAppPrincipalId.value]"
+            },
+            "office365ConnectionResourceId": {
+              "type": "string",
+              "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('resourceGroupName')), 'Microsoft.Resources/deployments', format('resources-{0}', uniqueString(subscription().id, parameters('resourceGroupName')))), '2025-04-01').outputs.office365ConnectionResourceId.value]"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "[format('policy-{0}', uniqueString(parameters('managementGroupId'), parameters('policyAssignmentName')))]",
+      "scope": "[format('Microsoft.Management/managementGroups/{0}', parameters('managementGroupId'))]",
+      "location": "[deployment().location]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "policyAssignmentName": {
+            "value": "[parameters('policyAssignmentName')]"
+          },
+          "automationName": {
+            "value": "[parameters('automationName')]"
+          },
+          "automationResourceGroupName": {
+            "value": "[parameters('automationResourceGroupName')]"
+          },
+          "logicAppResourceId": {
+            "value": "[reference(subscriptionResourceId(parameters('centralSubscriptionId'), 'Microsoft.Resources/deployments', format('central-{0}', uniqueString(parameters('centralSubscriptionId'), parameters('centralResourceGroupName')))), '2025-04-01').outputs.logicAppResourceId.value]"
+          },
+          "logicAppPrincipalId": {
+            "value": "[reference(subscriptionResourceId(parameters('centralSubscriptionId'), 'Microsoft.Resources/deployments', format('central-{0}', uniqueString(parameters('centralSubscriptionId'), parameters('centralResourceGroupName')))), '2025-04-01').outputs.logicAppPrincipalId.value]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-08-01/managementGroupDeploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.46.1.21595",
+              "templateHash": "2699155834634947075"
+            }
+          },
+          "parameters": {
+            "location": {
+              "type": "string"
+            },
+            "policyAssignmentName": {
+              "type": "string"
+            },
+            "automationName": {
+              "type": "string"
+            },
+            "automationResourceGroupName": {
+              "type": "string"
+            },
+            "logicAppResourceId": {
+              "type": "string"
+            },
+            "logicAppPrincipalId": {
+              "type": "string"
+            }
+          },
+          "variables": {
+            "workflowAutomationPolicyDefinitionId": "/providers/Microsoft.Authorization/policyDefinitions/73d6ab6c-2475-4850-afd6-43795f3492ef",
+            "contributorRoleId": "b24988ac-6180-42a0-ab88-20f7382dd24c",
+            "readerRoleId": "acdd72a7-3385-48ef-bd42-f606fba81ae7",
+            "securityReaderRoleId": "39bc4728-0917-49c7-9d2c-d95423bc2eb4"
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Authorization/policyAssignments",
+              "apiVersion": "2022-06-01",
+              "name": "[parameters('policyAssignmentName')]",
+              "location": "[parameters('location')]",
+              "identity": {
+                "type": "SystemAssigned"
+              },
+              "properties": {
+                "description": "Deploys Defender for Cloud recommendation workflow automation to every current and future subscription in this management group.",
+                "displayName": "Email all active Defender for Cloud recommendations",
+                "enforcementMode": "Default",
+                "policyDefinitionId": "[variables('workflowAutomationPolicyDefinitionId')]",
+                "parameters": {
+                  "automationName": {
+                    "value": "[parameters('automationName')]"
+                  },
+                  "createResourceGroup": {
+                    "value": true
+                  },
+                  "logicAppResourceId": {
+                    "value": "[parameters('logicAppResourceId')]"
+                  },
+                  "logicAppTrigger": {
+                    "value": "Manual (Incoming HTTP request)"
+                  },
+                  "recommendationNames": {
+                    "value": []
+                  },
+                  "recommendationSeverities": {
+                    "value": [
+                      "High",
+                      "Medium",
+                      "Low"
+                    ]
+                  },
+                  "recommendationStates": {
+                    "value": [
+                      "Unhealthy"
+                    ]
+                  },
+                  "resourceGroupLocation": {
+                    "value": "[parameters('location')]"
+                  },
+                  "resourceGroupName": {
+                    "value": "[parameters('automationResourceGroupName')]"
+                  }
+                },
+                "nonComplianceMessages": [
+                  {
+                    "message": "This subscription must contain the Defender for Cloud recommendation email workflow automation."
+                  }
+                ]
+              }
+            },
+            {
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "name": "[guid(managementGroup().id, extensionResourceId(managementGroup().id, 'Microsoft.Authorization/policyAssignments', parameters('policyAssignmentName')), variables('contributorRoleId'))]",
+              "properties": {
+                "principalId": "[reference(extensionResourceId(managementGroup().id, 'Microsoft.Authorization/policyAssignments', parameters('policyAssignmentName')), '2022-06-01', 'full').identity.principalId]",
+                "principalType": "ServicePrincipal",
+                "roleDefinitionId": "[tenantResourceId('Microsoft.Authorization/roleDefinitions', variables('contributorRoleId'))]"
+              },
+              "dependsOn": [
+                "[extensionResourceId(managementGroup().id, 'Microsoft.Authorization/policyAssignments', parameters('policyAssignmentName'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "name": "[guid(managementGroup().id, parameters('logicAppPrincipalId'), variables('readerRoleId'))]",
+              "properties": {
+                "principalId": "[parameters('logicAppPrincipalId')]",
+                "principalType": "ServicePrincipal",
+                "roleDefinitionId": "[tenantResourceId('Microsoft.Authorization/roleDefinitions', variables('readerRoleId'))]"
+              }
+            },
+            {
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "name": "[guid(managementGroup().id, parameters('logicAppPrincipalId'), variables('securityReaderRoleId'))]",
+              "properties": {
+                "principalId": "[parameters('logicAppPrincipalId')]",
+                "principalType": "ServicePrincipal",
+                "roleDefinitionId": "[tenantResourceId('Microsoft.Authorization/roleDefinitions', variables('securityReaderRoleId'))]"
+              }
+            }
+          ],
+          "outputs": {
+            "policyAssignmentId": {
+              "type": "string",
+              "value": "[extensionResourceId(managementGroup().id, 'Microsoft.Authorization/policyAssignments', parameters('policyAssignmentName'))]"
+            },
+            "policyAssignmentPrincipalId": {
+              "type": "string",
+              "value": "[reference(extensionResourceId(managementGroup().id, 'Microsoft.Authorization/policyAssignments', parameters('policyAssignmentName')), '2022-06-01', 'full').identity.principalId]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[subscriptionResourceId(parameters('centralSubscriptionId'), 'Microsoft.Resources/deployments', format('central-{0}', uniqueString(parameters('centralSubscriptionId'), parameters('centralResourceGroupName'))))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "[format('policy-access-{0}', uniqueString(parameters('centralSubscriptionId'), parameters('logicAppName')))]",
+      "subscriptionId": "[parameters('centralSubscriptionId')]",
+      "resourceGroup": "[parameters('centralResourceGroupName')]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "logicAppName": {
+            "value": "[parameters('logicAppName')]"
+          },
+          "policyAssignmentPrincipalId": {
+            "value": "[reference(extensionResourceId(tenantResourceId('Microsoft.Management/managementGroups', parameters('managementGroupId')), 'Microsoft.Resources/deployments', format('policy-{0}', uniqueString(parameters('managementGroupId'), parameters('policyAssignmentName')))), '2025-04-01').outputs.policyAssignmentPrincipalId.value]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.46.1.21595",
+              "templateHash": "3387674983611182903"
+            }
+          },
+          "parameters": {
+            "logicAppName": {
+              "type": "string"
+            },
+            "policyAssignmentPrincipalId": {
+              "type": "string"
+            }
+          },
+          "variables": {
+            "logicAppContributorRoleId": "87a39d53-fc1b-424a-814c-f7e04687dc9e"
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "scope": "[resourceId('Microsoft.Logic/workflows', parameters('logicAppName'))]",
+              "name": "[guid(resourceId('Microsoft.Logic/workflows', parameters('logicAppName')), parameters('policyAssignmentPrincipalId'), variables('logicAppContributorRoleId'))]",
+              "properties": {
+                "principalId": "[parameters('policyAssignmentPrincipalId')]",
+                "principalType": "ServicePrincipal",
+                "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', variables('logicAppContributorRoleId'))]"
+              }
+            }
+          ]
+        }
+      },
+      "dependsOn": [
+        "[extensionResourceId(tenantResourceId('Microsoft.Management/managementGroups', parameters('managementGroupId')), 'Microsoft.Resources/deployments', format('policy-{0}', uniqueString(parameters('managementGroupId'), parameters('policyAssignmentName'))))]"
+      ]
+    },
+    {
+      "condition": "[parameters('deployRemediation')]",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "[format('remediation-{0}', uniqueString(deployment().name, parameters('managementGroupId')))]",
+      "scope": "[format('Microsoft.Management/managementGroups/{0}', parameters('managementGroupId'))]",
+      "location": "[deployment().location]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "remediationName": {
+            "value": "[take(format('mdc-rec-{0}', uniqueString(deployment().name, parameters('managementGroupId'))), 64)]"
+          },
+          "policyAssignmentId": {
+            "value": "[reference(extensionResourceId(tenantResourceId('Microsoft.Management/managementGroups', parameters('managementGroupId')), 'Microsoft.Resources/deployments', format('policy-{0}', uniqueString(parameters('managementGroupId'), parameters('policyAssignmentName')))), '2025-04-01').outputs.policyAssignmentId.value]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-08-01/managementGroupDeploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.46.1.21595",
+              "templateHash": "3983397631732145903"
+            }
+          },
+          "parameters": {
+            "remediationName": {
+              "type": "string"
+            },
+            "policyAssignmentId": {
+              "type": "string"
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.PolicyInsights/remediations",
+              "apiVersion": "2021-10-01",
+              "name": "[parameters('remediationName')]",
+              "properties": {
+                "failureThreshold": {
+                  "percentage": "[json('0.1')]"
+                },
+                "parallelDeployments": 10,
+                "policyAssignmentId": "[parameters('policyAssignmentId')]",
+                "resourceCount": 50000,
+                "resourceDiscoveryMode": "ReEvaluateCompliance"
+              }
+            }
+          ]
+        }
+      },
+      "dependsOn": [
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', parameters('centralSubscriptionId'), parameters('centralResourceGroupName')), 'Microsoft.Resources/deployments', format('policy-access-{0}', uniqueString(parameters('centralSubscriptionId'), parameters('logicAppName'))))]",
+        "[extensionResourceId(tenantResourceId('Microsoft.Management/managementGroups', parameters('managementGroupId')), 'Microsoft.Resources/deployments', format('policy-{0}', uniqueString(parameters('managementGroupId'), parameters('policyAssignmentName'))))]"
+      ]
+    }
+  ],
+  "outputs": {
+    "centralResourceGroupId": {
+      "type": "string",
+      "value": "[reference(subscriptionResourceId(parameters('centralSubscriptionId'), 'Microsoft.Resources/deployments', format('central-{0}', uniqueString(parameters('centralSubscriptionId'), parameters('centralResourceGroupName')))), '2025-04-01').outputs.resourceGroupId.value]"
+    },
+    "logicAppResourceId": {
+      "type": "string",
+      "value": "[reference(subscriptionResourceId(parameters('centralSubscriptionId'), 'Microsoft.Resources/deployments', format('central-{0}', uniqueString(parameters('centralSubscriptionId'), parameters('centralResourceGroupName')))), '2025-04-01').outputs.logicAppResourceId.value]"
+    },
+    "office365ConnectionResourceId": {
+      "type": "string",
+      "value": "[reference(subscriptionResourceId(parameters('centralSubscriptionId'), 'Microsoft.Resources/deployments', format('central-{0}', uniqueString(parameters('centralSubscriptionId'), parameters('centralResourceGroupName')))), '2025-04-01').outputs.office365ConnectionResourceId.value]"
+    },
+    "policyAssignmentId": {
+      "type": "string",
+      "value": "[reference(extensionResourceId(tenantResourceId('Microsoft.Management/managementGroups', parameters('managementGroupId')), 'Microsoft.Resources/deployments', format('policy-{0}', uniqueString(parameters('managementGroupId'), parameters('policyAssignmentName')))), '2025-04-01').outputs.policyAssignmentId.value]"
+    },
+    "authorizationRequired": {
+      "type": "string",
+      "value": "Authorize the Office 365 connection before testing. See README.md."
+    }
+  }
+}

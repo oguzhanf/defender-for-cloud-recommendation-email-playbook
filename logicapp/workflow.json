@@ -1,0 +1,676 @@
+{
+  "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "$connections": {
+      "defaultValue": {},
+      "type": "Object"
+    },
+    "ccEmailAddresses": {
+      "type": "String"
+    },
+    "emailSubjectPrefix": {
+      "type": "String"
+    },
+    "managementGroupId": {
+      "type": "String"
+    },
+    "notificationEmailAddresses": {
+      "type": "String"
+    },
+    "resourceChangeLookbackHours": {
+      "type": "Int"
+    },
+    "stateContainerName": {
+      "type": "String"
+    },
+    "storageAccountName": {
+      "type": "String"
+    }
+  },
+  "triggers": {
+    "manual": {
+      "inputs": {
+        "schema": {
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "properties": {
+              "properties": {
+                "displayName": {
+                  "type": "string"
+                },
+                "links": {
+                  "properties": {
+                    "azurePortalUri": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                },
+                "metadata": {
+                  "properties": {
+                    "assessmentType": {
+                      "type": "string"
+                    },
+                    "categories": {
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
+                    },
+                    "description": {
+                      "type": "string"
+                    },
+                    "displayName": {
+                      "type": "string"
+                    },
+                    "implementationEffort": {
+                      "type": "string"
+                    },
+                    "policyDefinitionId": {
+                      "type": "string"
+                    },
+                    "preview": {
+                      "type": "boolean"
+                    },
+                    "remediationDescription": {
+                      "type": "string"
+                    },
+                    "severity": {
+                      "type": "string"
+                    },
+                    "threats": {
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
+                    },
+                    "userImpact": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                },
+                "resourceDetails": {
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "machineName": {
+                      "type": "string"
+                    },
+                    "source": {
+                      "type": "string"
+                    },
+                    "sourceComputerId": {
+                      "type": "string"
+                    },
+                    "vmuuid": {
+                      "type": "string"
+                    },
+                    "workspaceId": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                },
+                "status": {
+                  "properties": {
+                    "cause": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "description": {
+                      "type": "string"
+                    },
+                    "firstEvaluationDate": {
+                      "type": "string"
+                    },
+                    "statusChangeDate": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              },
+              "type": "object"
+            },
+            "type": {
+              "type": "string"
+            }
+          },
+          "type": "object"
+        }
+      },
+      "kind": "Http",
+      "type": "Request"
+    }
+  },
+  "actions": {
+    "Initialize_ResourceId": {
+      "inputs": {
+        "variables": [
+          {
+            "name": "ResourceId",
+            "type": "string",
+            "value": "@coalesce(triggerBody()?['properties']?['resourceDetails']?['id'], '')"
+          }
+        ]
+      },
+      "runAfter": {},
+      "type": "InitializeVariable"
+    },
+    "Initialize_SubscriptionId": {
+      "inputs": {
+        "variables": [
+          {
+            "name": "SubscriptionId",
+            "type": "string",
+            "value": "@if(greater(length(split(if(empty(variables('ResourceId')), coalesce(triggerBody()?['id'], ''), variables('ResourceId')), '/')), 2), split(if(empty(variables('ResourceId')), coalesce(triggerBody()?['id'], ''), variables('ResourceId')), '/')[2], '')"
+          }
+        ]
+      },
+      "runAfter": {
+        "Initialize_ResourceId": [
+          "Succeeded"
+        ]
+      },
+      "type": "InitializeVariable"
+    },
+    "Initialize_SubscriptionName": {
+      "inputs": {
+        "variables": [
+          {
+            "name": "SubscriptionName",
+            "type": "string",
+            "value": "@if(empty(variables('SubscriptionId')), 'Not available', variables('SubscriptionId'))"
+          }
+        ]
+      },
+      "runAfter": {
+        "Initialize_SubscriptionId": [
+          "Succeeded"
+        ]
+      },
+      "type": "InitializeVariable"
+    },
+    "Initialize_SubscriptionScoreHtml": {
+      "inputs": {
+        "variables": [
+          {
+            "name": "SubscriptionScoreHtml",
+            "type": "string",
+            "value": "<p>Subscription Secure Score is unavailable for this event.</p>"
+          }
+        ]
+      },
+      "runAfter": {
+        "Initialize_SubscriptionName": [
+          "Succeeded"
+        ]
+      },
+      "type": "InitializeVariable"
+    },
+    "Initialize_OverallScoreHtml": {
+      "inputs": {
+        "variables": [
+          {
+            "name": "OverallScoreHtml",
+            "type": "string",
+            "value": "<p>Management-group Secure Score is unavailable for this event.</p>"
+          }
+        ]
+      },
+      "runAfter": {
+        "Initialize_SubscriptionScoreHtml": [
+          "Succeeded"
+        ]
+      },
+      "type": "InitializeVariable"
+    },
+    "Initialize_ScoreImpactHtml": {
+      "inputs": {
+        "variables": [
+          {
+            "name": "ScoreImpactHtml",
+            "type": "string",
+            "value": "<p>No numeric score-impact estimate is available. The recommendation can be preview, custom, unscored, or not mapped to a classic Secure Score control.</p>"
+          }
+        ]
+      },
+      "runAfter": {
+        "Initialize_OverallScoreHtml": [
+          "Succeeded"
+        ]
+      },
+      "type": "InitializeVariable"
+    },
+    "Initialize_ResourceChangesHtml": {
+      "inputs": {
+        "variables": [
+          {
+            "name": "ResourceChangesHtml",
+            "type": "string",
+            "value": "<p>Recent Azure Resource Manager change data is unavailable or not applicable to this resource.</p>"
+          }
+        ]
+      },
+      "runAfter": {
+        "Initialize_ScoreImpactHtml": [
+          "Succeeded"
+        ]
+      },
+      "type": "InitializeVariable"
+    },
+    "Initialize_TotalManagementGroupWeight": {
+      "inputs": {
+        "variables": [
+          {
+            "name": "TotalManagementGroupWeight",
+            "type": "float",
+            "value": 0
+          }
+        ]
+      },
+      "runAfter": {
+        "Initialize_ResourceChangesHtml": [
+          "Succeeded"
+        ]
+      },
+      "type": "InitializeVariable"
+    },
+    "Create_deduplication_marker": {
+      "inputs": {
+        "authentication": {
+          "audience": "https://storage.azure.com/",
+          "type": "ManagedServiceIdentity"
+        },
+        "body": "@triggerBody()",
+        "headers": {
+          "Content-Type": "application/json",
+          "If-None-Match": "*",
+          "x-ms-blob-type": "BlockBlob",
+          "x-ms-date": "@formatDateTime(utcNow(), 'R')",
+          "x-ms-version": "2023-11-03"
+        },
+        "method": "PUT",
+        "retryPolicy": {
+          "type": "none"
+        },
+        "uri": "@concat('https://', parameters('storageAccountName'), '.blob.core.windows.net/', parameters('stateContainerName'), '/', take(replace(replace(replace(base64(toLower(concat(coalesce(triggerBody()?['name'], 'unknown-assessment'), '|', coalesce(triggerBody()?['properties']?['status']?['code'], 'unknown-status'), '|', if(empty(variables('ResourceId')), coalesce(triggerBody()?['id'], triggerBody()?['properties']?['resourceDetails']?['machineName'], 'unknown-resource'), variables('ResourceId'))))), '/', '_'), '+', '-'), '=', ''), 900), '.json')"
+      },
+      "runAfter": {
+        "Initialize_TotalManagementGroupWeight": [
+          "Succeeded"
+        ]
+      },
+      "type": "Http"
+    },
+    "Only_process_new_event": {
+      "actions": {
+        "Enrich_Azure_resource": {
+          "actions": {
+            "If_Azure_resource": {
+              "actions": {
+                "Find_matching_control_definition": {
+                  "inputs": {
+                    "from": "@body('Get_secure_score_control_definitions')?['value']",
+                    "where": "@and(not(empty(triggerBody()?['name'])), contains(toLower(string(item()?['properties']?['assessmentDefinitions'])), toLower(triggerBody()?['name'])))"
+                  },
+                  "runAfter": {
+                    "Get_secure_score_control_definitions": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "Query"
+                },
+                "Find_matching_control_score": {
+                  "inputs": {
+                    "from": "@body('Get_subscription_secure_score_controls')?['value']",
+                    "where": "@if(empty(body('Find_matching_control_definition')), false, equals(toLower(item()?['name']), toLower(first(body('Find_matching_control_definition'))?['name'])))"
+                  },
+                  "runAfter": {
+                    "Find_matching_control_definition": [
+                      "Succeeded"
+                    ],
+                    "Get_subscription_secure_score_controls": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "Query"
+                },
+                "Calculate_score_impact": {
+                  "actions": {
+                    "Set_ScoreImpactHtml": {
+                      "inputs": {
+                        "name": "ScoreImpactHtml",
+                        "value": "@concat('<p><strong>Mapped security control:</strong> ', coalesce(first(body('Find_matching_control_score'))?['properties']?['displayName'], first(body('Find_matching_control_definition'))?['properties']?['displayName'], 'Unknown'), '</p><p><strong>Control score now:</strong> ', formatNumber(float(coalesce(first(body('Find_matching_control_score'))?['properties']?['score']?['current'], 0)), '0.00'), ' / ', formatNumber(float(coalesce(first(body('Find_matching_control_score'))?['properties']?['score']?['max'], 0)), '0.00'), ' points across ', string(add(int(coalesce(first(body('Find_matching_control_score'))?['properties']?['healthyResourceCount'], 0)), int(coalesce(first(body('Find_matching_control_score'))?['properties']?['unhealthyResourceCount'], 0)))), ' scored resources.</p><p><strong>Estimated maximum difference attributable to this affected resource:</strong> ', formatNumber(div(float(first(body('Find_matching_control_score'))?['properties']?['score']?['max']), float(add(int(coalesce(first(body('Find_matching_control_score'))?['properties']?['healthyResourceCount'], 0)), int(coalesce(first(body('Find_matching_control_score'))?['properties']?['unhealthyResourceCount'], 0))))), '0.000'), ' control points; ', formatNumber(mul(div(div(float(first(body('Find_matching_control_score'))?['properties']?['score']?['max']), float(add(int(coalesce(first(body('Find_matching_control_score'))?['properties']?['healthyResourceCount'], 0)), int(coalesce(first(body('Find_matching_control_score'))?['properties']?['unhealthyResourceCount'], 0))))), float(body('Get_subscription_secure_score')?['properties']?['score']?['max'])), 100), '0.000'), ' percentage points for this subscription', if(greater(float(variables('TotalManagementGroupWeight')), 0), concat('; ', formatNumber(mul(mul(div(div(float(first(body('Find_matching_control_score'))?['properties']?['score']?['max']), float(add(int(coalesce(first(body('Find_matching_control_score'))?['properties']?['healthyResourceCount'], 0)), int(coalesce(first(body('Find_matching_control_score'))?['properties']?['unhealthyResourceCount'], 0))))), float(body('Get_subscription_secure_score')?['properties']?['score']?['max'])), 100), div(float(body('Get_subscription_secure_score')?['properties']?['weight']), float(variables('TotalManagementGroupWeight')))), '0.000'), ' weighted percentage points for the selected management group'), ''), '.</p><p>This is a resource-level estimate, not a forecast. Defender recalculates controls about every eight hours, the current score can already include the finding, preview and custom recommendations do not score, and the management-group score is weighted.</p>')"
+                      },
+                      "runAfter": {},
+                      "type": "SetVariable"
+                    }
+                  },
+                  "else": {
+                    "actions": {}
+                  },
+                  "expression": {
+                    "and": [
+                      {
+                        "not": {
+                          "equals": [
+                            "@empty(body('Find_matching_control_score'))",
+                            true
+                          ]
+                        }
+                      },
+                      {
+                        "not": {
+                          "equals": [
+                            "@coalesce(triggerBody()?['properties']?['metadata']?['preview'], false)",
+                            true
+                          ]
+                        }
+                      },
+                      {
+                        "equals": [
+                          "@toLower(coalesce(triggerBody()?['properties']?['metadata']?['assessmentType'], ''))",
+                          "builtin"
+                        ]
+                      },
+                      {
+                        "greater": [
+                          "@add(int(coalesce(first(body('Find_matching_control_score'))?['properties']?['healthyResourceCount'], 0)), int(coalesce(first(body('Find_matching_control_score'))?['properties']?['unhealthyResourceCount'], 0)))",
+                          0
+                        ]
+                      },
+                      {
+                        "greater": [
+                          "@float(coalesce(first(body('Find_matching_control_score'))?['properties']?['score']?['max'], 0))",
+                          0
+                        ]
+                      },
+                      {
+                        "greater": [
+                          "@float(coalesce(body('Get_subscription_secure_score')?['properties']?['score']?['max'], 0))",
+                          0
+                        ]
+                      }
+                    ]
+                  },
+                  "runAfter": {
+                    "Find_matching_control_score": [
+                      "Succeeded"
+                    ],
+                    "Get_subscription_secure_score": [
+                      "Succeeded"
+                    ],
+                    "Set_TotalManagementGroupWeight": [
+                      "Succeeded",
+                      "Failed",
+                      "Skipped",
+                      "TimedOut"
+                    ]
+                  },
+                  "type": "If"
+                },
+                "Get_management_group_secure_score": {
+                  "inputs": {
+                    "authentication": {
+                      "audience": "https://management.azure.com/",
+                      "type": "ManagedServiceIdentity"
+                    },
+                    "body": {
+                      "managementGroups": [
+                        "@parameters('managementGroupId')"
+                      ],
+                      "options": {
+                        "resultFormat": "objectArray"
+                      },
+                      "query": "securityresources | where type =~ 'microsoft.security/securescores' and name =~ 'ascScore' | extend scorePercentage=todouble(properties.score.percentage), scoreWeight=todouble(properties.weight) | where isnotnull(scorePercentage) and isnotnull(scoreWeight) and scoreWeight > 0 | extend weightedScore=scorePercentage * scoreWeight | summarize overallPercentage=round(100.0 * sum(weightedScore) / sum(scoreWeight), 2), totalWeight=sum(scoreWeight), subscriptionCount=dcount(subscriptionId)"
+                    },
+                    "method": "POST",
+                    "uri": "https://management.azure.com/providers/Microsoft.ResourceGraph/resources?api-version=2024-04-01"
+                  },
+                  "runAfter": {},
+                  "type": "Http"
+                },
+                "Get_recent_resource_changes": {
+                  "inputs": {
+                    "authentication": {
+                      "audience": "https://management.azure.com/",
+                      "type": "ManagedServiceIdentity"
+                    },
+                    "body": {
+                      "$top": 5,
+                      "fetchPropertyChanges": true,
+                      "interval": {
+                        "end": "@utcNow()",
+                        "start": "@addHours(utcNow(), sub(0, parameters('resourceChangeLookbackHours')))"
+                      },
+                      "resourceIds": [
+                        "@variables('ResourceId')"
+                      ]
+                    },
+                    "method": "POST",
+                    "uri": "https://management.azure.com/providers/Microsoft.ResourceGraph/resourceChanges?api-version=2020-09-01-preview"
+                  },
+                  "runAfter": {},
+                  "type": "Http"
+                },
+                "Get_secure_score_control_definitions": {
+                  "inputs": {
+                    "authentication": {
+                      "audience": "https://management.azure.com/",
+                      "type": "ManagedServiceIdentity"
+                    },
+                    "method": "GET",
+                    "uri": "https://management.azure.com/providers/Microsoft.Security/secureScoreControlDefinitions?api-version=2020-01-01"
+                  },
+                  "runAfter": {},
+                  "type": "Http"
+                },
+                "Get_subscription": {
+                  "inputs": {
+                    "authentication": {
+                      "audience": "https://management.azure.com/",
+                      "type": "ManagedServiceIdentity"
+                    },
+                    "method": "GET",
+                    "uri": "@concat('https://management.azure.com/subscriptions/', variables('SubscriptionId'), '?api-version=2020-01-01')"
+                  },
+                  "runAfter": {},
+                  "type": "Http"
+                },
+                "Get_subscription_secure_score": {
+                  "inputs": {
+                    "authentication": {
+                      "audience": "https://management.azure.com/",
+                      "type": "ManagedServiceIdentity"
+                    },
+                    "method": "GET",
+                    "uri": "@concat('https://management.azure.com/subscriptions/', variables('SubscriptionId'), '/providers/Microsoft.Security/secureScores/ascScore?api-version=2020-01-01')"
+                  },
+                  "runAfter": {},
+                  "type": "Http"
+                },
+                "Get_subscription_secure_score_controls": {
+                  "inputs": {
+                    "authentication": {
+                      "audience": "https://management.azure.com/",
+                      "type": "ManagedServiceIdentity"
+                    },
+                    "method": "GET",
+                    "uri": "@concat('https://management.azure.com/subscriptions/', variables('SubscriptionId'), '/providers/Microsoft.Security/secureScores/ascScore/secureScoreControls?api-version=2020-01-01&$expand=definition')"
+                  },
+                  "runAfter": {},
+                  "type": "Http"
+                },
+                "Set_OverallScoreHtml": {
+                  "inputs": {
+                    "name": "OverallScoreHtml",
+                    "value": "@if(empty(body('Get_management_group_secure_score')?['data']), '<p>Management-group Secure Score is unavailable for this event.</p>', concat('<p><strong>Selected management-group score:</strong> ', formatNumber(float(first(body('Get_management_group_secure_score')?['data'])?['overallPercentage']), '0.00'), '% across ', string(first(body('Get_management_group_secure_score')?['data'])?['subscriptionCount']), ' scored subscriptions. This is the classic weighted Secure Score calculated from Azure Resource Graph data.</p>'))"
+                  },
+                  "runAfter": {
+                    "Get_management_group_secure_score": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "SetVariable"
+                },
+                "Set_ResourceChangesHtml": {
+                  "inputs": {
+                    "name": "ResourceChangesHtml",
+                    "value": "@if(empty(body('Get_recent_resource_changes')?['changes']), concat('<p>No Azure Resource Manager changes were recorded for this resource during the last ', string(parameters('resourceChangeLookbackHours')), ' hours.</p>'), concat('<pre style=\"white-space:pre-wrap;word-break:break-word;background:#f6f8fa;border:1px solid #d0d7de;padding:12px;\">', replace(replace(replace(string(take(body('Get_recent_resource_changes')?['changes'], 5)), '&', '&amp;'), '<', '&lt;'), '>', '&gt;'), '</pre>'))"
+                  },
+                  "runAfter": {
+                    "Get_recent_resource_changes": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "SetVariable"
+                },
+                "Set_SubscriptionName": {
+                  "inputs": {
+                    "name": "SubscriptionName",
+                    "value": "@coalesce(body('Get_subscription')?['displayName'], variables('SubscriptionId'))"
+                  },
+                  "runAfter": {
+                    "Get_subscription": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "SetVariable"
+                },
+                "Set_SubscriptionScoreHtml": {
+                  "inputs": {
+                    "name": "SubscriptionScoreHtml",
+                    "value": "@concat('<p><strong>Subscription score:</strong> ', formatNumber(mul(float(body('Get_subscription_secure_score')?['properties']?['score']?['percentage']), 100), '0.00'), '% (', formatNumber(float(body('Get_subscription_secure_score')?['properties']?['score']?['current']), '0.00'), ' / ', formatNumber(float(body('Get_subscription_secure_score')?['properties']?['score']?['max']), '0.00'), ' points; aggregation weight ', string(body('Get_subscription_secure_score')?['properties']?['weight']), ').</p>')"
+                  },
+                  "runAfter": {
+                    "Get_subscription_secure_score": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "SetVariable"
+                },
+                "Set_TotalManagementGroupWeight": {
+                  "inputs": {
+                    "name": "TotalManagementGroupWeight",
+                    "value": "@float(if(empty(body('Get_management_group_secure_score')?['data']), 0, coalesce(first(body('Get_management_group_secure_score')?['data'])?['totalWeight'], 0)))"
+                  },
+                  "runAfter": {
+                    "Get_management_group_secure_score": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "SetVariable"
+                }
+              },
+              "else": {
+                "actions": {}
+              },
+              "expression": {
+                "and": [
+                  {
+                    "equals": [
+                      "@toLower(coalesce(triggerBody()?['properties']?['resourceDetails']?['source'], ''))",
+                      "azure"
+                    ]
+                  },
+                  {
+                    "not": {
+                      "equals": [
+                        "@empty(variables('SubscriptionId'))",
+                        true
+                      ]
+                    }
+                  },
+                  {
+                    "not": {
+                      "equals": [
+                        "@empty(variables('ResourceId'))",
+                        true
+                      ]
+                    }
+                  }
+                ]
+              },
+              "runAfter": {},
+              "type": "If"
+            }
+          },
+          "runAfter": {},
+          "type": "Scope"
+        },
+        "Send_recommendation_email": {
+          "inputs": {
+            "body": {
+              "Attachments": [
+                {
+                  "ContentBytes": "@base64(string(triggerBody()))",
+                  "Name": "@concat('defender-recommendation-', coalesce(triggerBody()?['name'], 'event'), '-', formatDateTime(utcNow(), 'yyyyMMddTHHmmssZ'), '.json')"
+                }
+              ],
+              "Body": "<html><body style=\"font-family:Segoe UI,Arial,sans-serif;color:#24292f;\"><div style=\"max-width:980px;margin:auto;\"><h2 style=\"color:#b42318;\">Microsoft Defender for Cloud recommendation raised</h2><p><strong>Detected:</strong> @{utcNow()}</p><table style=\"border-collapse:collapse;width:100%;\"><tr><td style=\"border:1px solid #d0d7de;padding:8px;font-weight:600;\">Recommendation</td><td style=\"border:1px solid #d0d7de;padding:8px;\">@{coalesce(triggerBody()?['properties']?['displayName'], triggerBody()?['properties']?['metadata']?['displayName'], 'Not supplied')}</td></tr><tr><td style=\"border:1px solid #d0d7de;padding:8px;font-weight:600;\">Severity</td><td style=\"border:1px solid #d0d7de;padding:8px;\">@{coalesce(triggerBody()?['properties']?['metadata']?['severity'], 'Not supplied')}</td></tr><tr><td style=\"border:1px solid #d0d7de;padding:8px;font-weight:600;\">Status</td><td style=\"border:1px solid #d0d7de;padding:8px;\">@{coalesce(triggerBody()?['properties']?['status']?['code'], 'Not supplied')}</td></tr><tr><td style=\"border:1px solid #d0d7de;padding:8px;font-weight:600;\">Status cause</td><td style=\"border:1px solid #d0d7de;padding:8px;\">@{coalesce(triggerBody()?['properties']?['status']?['cause'], 'Not supplied')}</td></tr><tr><td style=\"border:1px solid #d0d7de;padding:8px;font-weight:600;\">Status detail</td><td style=\"border:1px solid #d0d7de;padding:8px;\">@{coalesce(triggerBody()?['properties']?['status']?['description'], 'Not supplied')}</td></tr><tr><td style=\"border:1px solid #d0d7de;padding:8px;font-weight:600;\">Subscription</td><td style=\"border:1px solid #d0d7de;padding:8px;\">@{variables('SubscriptionName')} (@{variables('SubscriptionId')})</td></tr><tr><td style=\"border:1px solid #d0d7de;padding:8px;font-weight:600;\">Affected resource</td><td style=\"border:1px solid #d0d7de;padding:8px;\">@{if(empty(variables('ResourceId')), coalesce(triggerBody()?['properties']?['resourceDetails']?['machineName'], 'Not supplied'), last(split(variables('ResourceId'), '/')))}</td></tr><tr><td style=\"border:1px solid #d0d7de;padding:8px;font-weight:600;\">Resource source</td><td style=\"border:1px solid #d0d7de;padding:8px;\">@{coalesce(triggerBody()?['properties']?['resourceDetails']?['source'], 'Not supplied')}</td></tr><tr><td style=\"border:1px solid #d0d7de;padding:8px;font-weight:600;\">Resource ID</td><td style=\"border:1px solid #d0d7de;padding:8px;word-break:break-all;\">@{if(empty(variables('ResourceId')), 'Not supplied', variables('ResourceId'))}</td></tr><tr><td style=\"border:1px solid #d0d7de;padding:8px;font-weight:600;\">Assessment ID</td><td style=\"border:1px solid #d0d7de;padding:8px;word-break:break-all;\">@{coalesce(triggerBody()?['name'], 'Not supplied')}</td></tr><tr><td style=\"border:1px solid #d0d7de;padding:8px;font-weight:600;\">Assessment type</td><td style=\"border:1px solid #d0d7de;padding:8px;\">@{coalesce(triggerBody()?['properties']?['metadata']?['assessmentType'], 'Not supplied')}</td></tr><tr><td style=\"border:1px solid #d0d7de;padding:8px;font-weight:600;\">Preview</td><td style=\"border:1px solid #d0d7de;padding:8px;\">@{string(coalesce(triggerBody()?['properties']?['metadata']?['preview'], false))}</td></tr><tr><td style=\"border:1px solid #d0d7de;padding:8px;font-weight:600;\">Categories</td><td style=\"border:1px solid #d0d7de;padding:8px;\">@{join(coalesce(triggerBody()?['properties']?['metadata']?['categories'], createArray('Not supplied')), ', ')}</td></tr><tr><td style=\"border:1px solid #d0d7de;padding:8px;font-weight:600;\">Threats</td><td style=\"border:1px solid #d0d7de;padding:8px;\">@{join(coalesce(triggerBody()?['properties']?['metadata']?['threats'], createArray('Not supplied')), ', ')}</td></tr><tr><td style=\"border:1px solid #d0d7de;padding:8px;font-weight:600;\">Implementation effort</td><td style=\"border:1px solid #d0d7de;padding:8px;\">@{coalesce(triggerBody()?['properties']?['metadata']?['implementationEffort'], 'Not supplied')}</td></tr><tr><td style=\"border:1px solid #d0d7de;padding:8px;font-weight:600;\">User impact</td><td style=\"border:1px solid #d0d7de;padding:8px;\">@{coalesce(triggerBody()?['properties']?['metadata']?['userImpact'], 'Not supplied')}</td></tr><tr><td style=\"border:1px solid #d0d7de;padding:8px;font-weight:600;\">Policy definition</td><td style=\"border:1px solid #d0d7de;padding:8px;word-break:break-all;\">@{coalesce(triggerBody()?['properties']?['metadata']?['policyDefinitionId'], 'Not supplied')}</td></tr></table><h3>Description</h3><div>@{coalesce(triggerBody()?['properties']?['metadata']?['description'], 'No description supplied.')}</div><h3>Recommended remediation</h3><div>@{coalesce(triggerBody()?['properties']?['metadata']?['remediationDescription'], 'No remediation guidance supplied.')}</div><h3>What changed in the environment</h3><p><strong>Defender assessment change:</strong> the affected resource is currently evaluated as <strong>@{coalesce(triggerBody()?['properties']?['status']?['code'], 'unknown')}</strong>. The recommendation event does not guarantee an exact before/after configuration diff. The recent ARM changes below are best-effort correlation data and might not be the cause of the recommendation.</p>@{variables('ResourceChangesHtml')}<h3>Secure Score</h3><p><strong>Effect of sending this notification:</strong> 0 points. Email delivery itself never changes Secure Score.</p>@{variables('SubscriptionScoreHtml')}@{variables('OverallScoreHtml')}@{variables('ScoreImpactHtml')}<p>Classic Secure Score controls are normally recalculated about every eight hours. The newer risk-based Cloud Secure Score in the Defender portal is a different model and is not projected by this workflow.</p><h3>Open in Defender for Cloud</h3><p><a href=\"@{coalesce(triggerBody()?['properties']?['links']?['azurePortalUri'], 'https://portal.azure.com/#view/Microsoft_Azure_Security/SecurityMenuBlade/~/Recommendations')}\">View recommendation in Azure portal</a></p><p style=\"font-size:12px;color:#57606a;\"><strong>Deduplication:</strong> @{if(equals(outputs('Create_deduplication_marker')?['statusCode'], 201), 'marker created successfully.', concat('marker creation did not return HTTP 201 (status ', string(coalesce(outputs('Create_deduplication_marker')?['statusCode'], 'unavailable')), '); this email was sent to avoid losing the alert.'))}</p><p style=\"font-size:12px;color:#57606a;\">The complete Defender event payload is attached as JSON. Duplicate events for the same resource, recommendation, and state are suppressed for the configured retention period.</p></div></body></html>",
+              "Cc": "@parameters('ccEmailAddresses')",
+              "Importance": "@if(equals(toLower(coalesce(triggerBody()?['properties']?['metadata']?['severity'], '')), 'high'), 'High', 'Normal')",
+              "Subject": "@concat(parameters('emailSubjectPrefix'), ' [', coalesce(triggerBody()?['properties']?['metadata']?['severity'], 'Unknown'), '] ', coalesce(triggerBody()?['properties']?['displayName'], triggerBody()?['properties']?['metadata']?['displayName'], 'Security recommendation'), ' - ', if(empty(variables('ResourceId')), coalesce(triggerBody()?['properties']?['resourceDetails']?['machineName'], 'Unknown resource'), last(split(variables('ResourceId'), '/'))))",
+              "To": "@parameters('notificationEmailAddresses')"
+            },
+            "host": {
+              "connection": {
+                "name": "@parameters('$connections')['office365']['connectionId']"
+              }
+            },
+            "method": "post",
+            "path": "/v2/Mail"
+          },
+          "runAfter": {
+            "Enrich_Azure_resource": [
+              "Succeeded",
+              "Failed",
+              "Skipped",
+              "TimedOut"
+            ]
+          },
+          "type": "ApiConnection"
+        }
+      },
+      "else": {
+        "actions": {
+          "Terminate_duplicate_event": {
+            "inputs": {
+              "runStatus": "Succeeded"
+            },
+            "runAfter": {},
+            "type": "Terminate"
+          }
+        }
+      },
+      "expression": {
+        "not": {
+          "equals": [
+            "@outputs('Create_deduplication_marker')?['statusCode']",
+            412
+          ]
+        }
+      },
+      "runAfter": {
+        "Create_deduplication_marker": [
+          "Succeeded",
+          "Failed",
+          "TimedOut"
+        ]
+      },
+      "type": "If"
+    }
+  },
+  "outputs": {}
+}
