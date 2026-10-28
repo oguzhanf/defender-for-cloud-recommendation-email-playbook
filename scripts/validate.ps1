@@ -4,11 +4,32 @@ param()
 $ErrorActionPreference = 'Stop'
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $workflowPath = Join-Path $repoRoot 'logicapp\workflow.json'
+$formPath = Join-Path $repoRoot 'uiFormDefinition.json'
 $bicepPath = Join-Path $repoRoot 'azuredeploy.bicep'
 $armPath = Join-Path $repoRoot 'azuredeploy.json'
 
 Get-Content -Raw $workflowPath | ConvertFrom-Json | Out-Null
 Write-Host 'PASS workflow.json parses as JSON'
+
+$form = Get-Content -Raw $formPath | ConvertFrom-Json
+if ($form.view.outputs.kind -ne 'ManagementGroup') {
+    throw 'uiFormDefinition.json must deploy at management-group scope.'
+}
+if ($form.view.outputs.parameters.centralSubscriptionId -ne "[steps('scope').centralSubscription.subscriptionId]") {
+    throw 'uiFormDefinition.json must map the selected subscription to centralSubscriptionId.'
+}
+
+$formTypes = @($form.view.properties.steps.elements.type)
+foreach ($requiredFormType in @(
+    'Microsoft.Common.ManagementGroupSelector',
+    'Microsoft.Common.SubscriptionSelector',
+    'Microsoft.Common.LocationSelector'
+)) {
+    if ($requiredFormType -notin $formTypes) {
+        throw "uiFormDefinition.json is missing '$requiredFormType'."
+    }
+}
+Write-Host 'PASS portal form contains native Azure scope pickers'
 
 az bicep build --file $bicepPath --outfile $armPath
 if ($LASTEXITCODE -ne 0) {

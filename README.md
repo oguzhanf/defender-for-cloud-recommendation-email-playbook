@@ -2,7 +2,7 @@
 
 Management-group-scale Azure deployment that emails a detailed notification whenever Microsoft Defender for Cloud raises an **unhealthy top-level security recommendation**. It covers every current and future subscription under the deployment management group and all supported recommendation names and severities.
 
-[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Foguzhanf%2Fdefender-for-cloud-recommendation-email-playbook%2Fmain%2Fazuredeploy.json)
+[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#blade/Microsoft_Azure_CreateUIDef/CustomDeploymentBlade/uri/https%3A%2F%2Fraw.githubusercontent.com%2Foguzhanf%2Fdefender-for-cloud-recommendation-email-playbook%2Fmain%2Fazuredeploy.json/uiFormDefinitionUri/https%3A%2F%2Fraw.githubusercontent.com%2Foguzhanf%2Fdefender-for-cloud-recommendation-email-playbook%2Fmain%2FuiFormDefinition.json)
 
 ## What is deployed
 
@@ -44,13 +44,10 @@ The automation selects:
 ## Deploy
 
 1. Select **Deploy to Azure** above.
-2. In **Project details**, select the management group to govern. Select the tenant root management group to cover the full tenant.
-3. Enter:
-   - **Central Subscription ID**: subscription that hosts the Logic App.
-   - **Notification Email Addresses**: semicolon-separated recipients.
-   - Optional CC recipients and naming settings.
-4. Keep `Deploy Remediation` enabled to cover subscriptions that already exist.
-5. Create the deployment.
+2. Select the management group to govern. Select the tenant root management group to cover the full tenant.
+3. Select the central subscription and Azure region from their pickers.
+4. Enter the notification recipients and optional CC recipients.
+5. Create the deployment. Existing subscriptions are remediated automatically.
 6. Authorize the Office 365 connection once:
 
    ```powershell
@@ -117,7 +114,8 @@ Use a real Azure resource ID under the governed management group so enrichment c
 
 | Path | Purpose |
 |---|---|
-| `azuredeploy.bicep` / `azuredeploy.json` | Tenant-scope deployment and Deploy to Azure artifact |
+| `azuredeploy.bicep` / `azuredeploy.json` | Management-group deployment and Deploy to Azure artifact |
+| `uiFormDefinition.json` | Azure portal form with management-group, subscription, and region pickers |
 | `infra/modules/` | Central subscription, Logic App, policy, RBAC, and remediation modules |
 | `logicapp/workflow.json` | Logic App workflow definition |
 | `samples/recommendation-event.json` | Synthetic Defender recommendation event |
@@ -141,6 +139,7 @@ The script validates JSON, recompiles Bicep, and checks the generated management
 - [Secure Score control definitions REST API](https://learn.microsoft.com/rest/api/defenderforcloud/secure-score-control-definitions/list)
 - [Azure Resource Graph resource changes](https://learn.microsoft.com/azure/governance/resource-graph/changes/get-resource-changes)
 - [Deploy to Azure button](https://learn.microsoft.com/azure/azure-resource-manager/templates/deploy-to-azure-button)
+- [Azure portal Form view](https://learn.microsoft.com/azure/azure-resource-manager/templates/form-view-overview)
 
 ## License
 

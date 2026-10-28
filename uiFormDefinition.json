@@ -1,0 +1,106 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2021-09-09/uiFormDefinition.schema.json#",
+  "view": {
+    "kind": "Form",
+    "properties": {
+      "title": "Defender for Cloud recommendation email playbook",
+      "steps": [
+        {
+          "name": "scope",
+          "label": "Azure scope",
+          "description": "Select the management group to govern and the subscription that hosts the central notification resources.",
+          "elements": [
+            {
+              "name": "managementGroup",
+              "type": "Microsoft.Common.ManagementGroupSelector",
+              "constraints": [
+                {
+                  "isValid": "[not(empty(steps('scope').managementGroup.managementGroupId))]",
+                  "message": "Select a management group."
+                }
+              ],
+              "visible": true
+            },
+            {
+              "name": "centralSubscription",
+              "type": "Microsoft.Common.SubscriptionSelector",
+              "constraints": {
+                "validations": [
+                  {
+                    "isValid": "[not(empty(steps('scope').centralSubscription.subscriptionId))]",
+                    "message": "Select the subscription that will host the central Logic App."
+                  }
+                ]
+              },
+              "visible": true
+            },
+            {
+              "name": "location",
+              "type": "Microsoft.Common.LocationSelector",
+              "label": "Azure region",
+              "toolTip": "Select a region that supports Logic Apps and Storage in the central subscription.",
+              "resourceTypes": [
+                "Microsoft.Logic/workflows",
+                "Microsoft.Storage/storageAccounts"
+              ],
+              "scope": {
+                "subscriptionId": "[steps('scope').centralSubscription.subscriptionId]"
+              },
+              "visible": true
+            }
+          ]
+        },
+        {
+          "name": "notifications",
+          "label": "Email notifications",
+          "description": "Specify who receives Defender for Cloud recommendation notifications.",
+          "elements": [
+            {
+              "name": "notificationEmailAddresses",
+              "type": "Microsoft.Common.TextBox",
+              "label": "Recipients",
+              "defaultValue": "",
+              "toolTip": "Enter one or more email addresses separated by semicolons.",
+              "placeholder": "security@contoso.com;cloudops@contoso.com",
+              "multiLine": false,
+              "constraints": {
+                "required": true,
+                "validations": [
+                  {
+                    "regex": "^\\s*[^;\\s@]+@[^;\\s@]+\\.[^;\\s@]+(\\s*;\\s*[^;\\s@]+@[^;\\s@]+\\.[^;\\s@]+)*\\s*$",
+                    "message": "Enter valid email addresses separated by semicolons."
+                  }
+                ]
+              },
+              "visible": true
+            },
+            {
+              "name": "ccEmailAddresses",
+              "type": "Microsoft.Common.TextBox",
+              "label": "CC recipients (optional)",
+              "defaultValue": "",
+              "toolTip": "Optionally enter additional email addresses separated by semicolons.",
+              "placeholder": "grc@contoso.com",
+              "multiLine": false,
+              "constraints": {
+                "required": false
+              },
+              "visible": true
+            }
+          ]
+        }
+      ]
+    },
+    "outputs": {
+      "kind": "ManagementGroup",
+      "managementGroupId": "[steps('scope').managementGroup.managementGroupId]",
+      "location": "[steps('scope').location.name]",
+      "parameters": {
+        "centralSubscriptionId": "[steps('scope').centralSubscription.subscriptionId]",
+        "location": "[steps('scope').location.name]",
+        "notificationEmailAddresses": "[steps('notifications').notificationEmailAddresses]",
+        "ccEmailAddresses": "[steps('notifications').ccEmailAddresses]"
+      }
+    }
+  }
+}
