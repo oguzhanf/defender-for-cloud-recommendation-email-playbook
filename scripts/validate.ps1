@@ -17,8 +17,8 @@ if ($LASTEXITCODE -ne 0) {
 Write-Host 'PASS Bicep compilation'
 
 $template = Get-Content -Raw $armPath | ConvertFrom-Json
-if ($template.'$schema' -ne 'https://schema.management.azure.com/schemas/2019-08-01/tenantDeploymentTemplate.json#') {
-    throw 'azuredeploy.json is not a tenant-scope template.'
+if ($template.'$schema' -ne 'https://schema.management.azure.com/schemas/2019-08-01/managementGroupDeploymentTemplate.json#') {
+    throw 'azuredeploy.json is not a management-group-scope template.'
 }
 
 $serialized = $template | ConvertTo-Json -Depth 100
@@ -34,4 +34,4 @@ foreach ($requiredValue in @(
     }
 }
 
-Write-Host 'PASS compiled tenant template contains required resources'
+Write-Host 'PASS compiled management-group template contains required resources'

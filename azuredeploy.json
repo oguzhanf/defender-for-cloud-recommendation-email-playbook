@@ -1,20 +1,14 @@
 {
-  "$schema": "https://schema.management.azure.com/schemas/2019-08-01/tenantDeploymentTemplate.json#",
+  "$schema": "https://schema.management.azure.com/schemas/2019-08-01/managementGroupDeploymentTemplate.json#",
   "contentVersion": "1.0.0.0",
   "metadata": {
     "_generator": {
       "name": "bicep",
       "version": "0.46.1.21595",
-      "templateHash": "8040118707390738890"
+      "templateHash": "3362097685859321268"
     }
   },
   "parameters": {
-    "managementGroupId": {
-      "type": "string",
-      "metadata": {
-        "description": "Management group whose current and future subscriptions receive the Defender for Cloud workflow automation. Use the tenant root management group to cover the full tenant."
-      }
-    },
     "centralSubscriptionId": {
       "type": "string",
       "metadata": {
@@ -131,6 +125,10 @@
       }
     }
   },
+  "variables": {
+    "deploymentManagementGroupId": "[managementGroup().name]",
+    "deploymentManagementGroupResourceId": "[managementGroup().id]"
+  },
   "resources": [
     {
       "type": "Microsoft.Resources/deployments",
@@ -166,7 +164,7 @@
             "value": "[parameters('emailSubjectPrefix')]"
           },
           "managementGroupId": {
-            "value": "[parameters('managementGroupId')]"
+            "value": "[variables('deploymentManagementGroupId')]"
           },
           "resourceChangeLookbackHours": {
             "value": "[parameters('resourceChangeLookbackHours')]"
@@ -1204,8 +1202,7 @@
     {
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2025-04-01",
-      "name": "[format('policy-{0}', uniqueString(parameters('managementGroupId'), parameters('policyAssignmentName')))]",
-      "scope": "[format('Microsoft.Management/managementGroups/{0}', parameters('managementGroupId'))]",
+      "name": "[format('policy-{0}', uniqueString(variables('deploymentManagementGroupResourceId'), parameters('policyAssignmentName')))]",
       "location": "[deployment().location]",
       "properties": {
         "expressionEvaluationOptions": {
@@ -1390,7 +1387,7 @@
             "value": "[parameters('logicAppName')]"
           },
           "policyAssignmentPrincipalId": {
-            "value": "[reference(extensionResourceId(tenantResourceId('Microsoft.Management/managementGroups', parameters('managementGroupId')), 'Microsoft.Resources/deployments', format('policy-{0}', uniqueString(parameters('managementGroupId'), parameters('policyAssignmentName')))), '2025-04-01').outputs.policyAssignmentPrincipalId.value]"
+            "value": "[reference(extensionResourceId(managementGroup().id, 'Microsoft.Resources/deployments', format('policy-{0}', uniqueString(variables('deploymentManagementGroupResourceId'), parameters('policyAssignmentName')))), '2025-04-01').outputs.policyAssignmentPrincipalId.value]"
           }
         },
         "template": {
@@ -1430,15 +1427,14 @@
         }
       },
       "dependsOn": [
-        "[extensionResourceId(tenantResourceId('Microsoft.Management/managementGroups', parameters('managementGroupId')), 'Microsoft.Resources/deployments', format('policy-{0}', uniqueString(parameters('managementGroupId'), parameters('policyAssignmentName'))))]"
+        "[extensionResourceId(managementGroup().id, 'Microsoft.Resources/deployments', format('policy-{0}', uniqueString(variables('deploymentManagementGroupResourceId'), parameters('policyAssignmentName'))))]"
       ]
     },
     {
       "condition": "[parameters('deployRemediation')]",
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2025-04-01",
-      "name": "[format('remediation-{0}', uniqueString(deployment().name, parameters('managementGroupId')))]",
-      "scope": "[format('Microsoft.Management/managementGroups/{0}', parameters('managementGroupId'))]",
+      "name": "[format('remediation-{0}', uniqueString(deployment().name, variables('deploymentManagementGroupResourceId')))]",
       "location": "[deployment().location]",
       "properties": {
         "expressionEvaluationOptions": {
@@ -1447,10 +1443,10 @@
         "mode": "Incremental",
         "parameters": {
           "remediationName": {
-            "value": "[take(format('mdc-rec-{0}', uniqueString(deployment().name, parameters('managementGroupId'))), 64)]"
+            "value": "[take(format('mdc-rec-{0}', uniqueString(deployment().name, variables('deploymentManagementGroupResourceId'))), 64)]"
           },
           "policyAssignmentId": {
-            "value": "[reference(extensionResourceId(tenantResourceId('Microsoft.Management/managementGroups', parameters('managementGroupId')), 'Microsoft.Resources/deployments', format('policy-{0}', uniqueString(parameters('managementGroupId'), parameters('policyAssignmentName')))), '2025-04-01').outputs.policyAssignmentId.value]"
+            "value": "[reference(extensionResourceId(managementGroup().id, 'Microsoft.Resources/deployments', format('policy-{0}', uniqueString(variables('deploymentManagementGroupResourceId'), parameters('policyAssignmentName')))), '2025-04-01').outputs.policyAssignmentId.value]"
           }
         },
         "template": {
@@ -1491,7 +1487,7 @@
       },
       "dependsOn": [
         "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', parameters('centralSubscriptionId'), parameters('centralResourceGroupName')), 'Microsoft.Resources/deployments', format('policy-access-{0}', uniqueString(parameters('centralSubscriptionId'), parameters('logicAppName'))))]",
-        "[extensionResourceId(tenantResourceId('Microsoft.Management/managementGroups', parameters('managementGroupId')), 'Microsoft.Resources/deployments', format('policy-{0}', uniqueString(parameters('managementGroupId'), parameters('policyAssignmentName'))))]"
+        "[extensionResourceId(managementGroup().id, 'Microsoft.Resources/deployments', format('policy-{0}', uniqueString(variables('deploymentManagementGroupResourceId'), parameters('policyAssignmentName'))))]"
       ]
     }
   ],
@@ -1510,7 +1506,7 @@
     },
     "policyAssignmentId": {
       "type": "string",
-      "value": "[reference(extensionResourceId(tenantResourceId('Microsoft.Management/managementGroups', parameters('managementGroupId')), 'Microsoft.Resources/deployments', format('policy-{0}', uniqueString(parameters('managementGroupId'), parameters('policyAssignmentName')))), '2025-04-01').outputs.policyAssignmentId.value]"
+      "value": "[reference(extensionResourceId(managementGroup().id, 'Microsoft.Resources/deployments', format('policy-{0}', uniqueString(variables('deploymentManagementGroupResourceId'), parameters('policyAssignmentName')))), '2025-04-01').outputs.policyAssignmentId.value]"
     },
     "authorizationRequired": {
       "type": "string",

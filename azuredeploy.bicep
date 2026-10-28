@@ -1,7 +1,4 @@
-targetScope = 'tenant'
-
-@description('Management group whose current and future subscriptions receive the Defender for Cloud workflow automation. Use the tenant root management group to cover the full tenant.')
-param managementGroupId string
+targetScope = 'managementGroup'
 
 @description('Subscription that hosts the central Logic App, Office 365 connection, and deduplication storage.')
 param centralSubscriptionId string
@@ -60,6 +57,9 @@ param tags object = {
   managedBy: 'bicep'
 }
 
+var deploymentManagementGroupId = managementGroup().name
+var deploymentManagementGroupResourceId = managementGroup().id
+
 module central 'infra/modules/central-subscription.bicep' = {
   name: 'central-${uniqueString(centralSubscriptionId, centralResourceGroupName)}'
   scope: subscription(centralSubscriptionId)
@@ -71,7 +71,7 @@ module central 'infra/modules/central-subscription.bicep' = {
     notificationEmailAddresses: notificationEmailAddresses
     ccEmailAddresses: ccEmailAddresses
     emailSubjectPrefix: emailSubjectPrefix
-    managementGroupId: managementGroupId
+    managementGroupId: deploymentManagementGroupId
     resourceChangeLookbackHours: resourceChangeLookbackHours
     deduplicationRetentionDays: deduplicationRetentionDays
     tags: tags
@@ -79,8 +79,7 @@ module central 'infra/modules/central-subscription.bicep' = {
 }
 
 module managementGroupPolicy 'infra/modules/management-group-policy.bicep' = {
-  name: 'policy-${uniqueString(managementGroupId, policyAssignmentName)}'
-  scope: managementGroup(managementGroupId)
+  name: 'policy-${uniqueString(deploymentManagementGroupResourceId, policyAssignmentName)}'
   params: {
     location: location
     policyAssignmentName: policyAssignmentName
@@ -101,10 +100,9 @@ module logicAppPolicyAccess 'infra/modules/logic-app-policy-access.bicep' = {
 }
 
 module remediation 'infra/modules/remediation.bicep' = if (deployRemediation) {
-  name: 'remediation-${uniqueString(deployment().name, managementGroupId)}'
-  scope: managementGroup(managementGroupId)
+  name: 'remediation-${uniqueString(deployment().name, deploymentManagementGroupResourceId)}'
   params: {
-    remediationName: take('mdc-rec-${uniqueString(deployment().name, managementGroupId)}', 64)
+    remediationName: take('mdc-rec-${uniqueString(deployment().name, deploymentManagementGroupResourceId)}', 64)
     policyAssignmentId: managementGroupPolicy.outputs.policyAssignmentId
   }
   dependsOn: [

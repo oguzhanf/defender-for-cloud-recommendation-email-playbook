@@ -1,6 +1,6 @@
 # Defender for Cloud recommendation email playbook
 
-Tenant-scale Azure deployment that emails a detailed notification whenever Microsoft Defender for Cloud raises an **unhealthy top-level security recommendation**. It covers every current and future subscription under a selected management group and all supported recommendation names and severities.
+Management-group-scale Azure deployment that emails a detailed notification whenever Microsoft Defender for Cloud raises an **unhealthy top-level security recommendation**. It covers every current and future subscription under the deployment management group and all supported recommendation names and severities.
 
 [![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Foguzhanf%2Fdefender-for-cloud-recommendation-email-playbook%2Fmain%2Fazuredeploy.json)
 
@@ -37,21 +37,21 @@ The automation selects:
 - A central Azure subscription under your control.
 - A Microsoft 365 mailbox permitted to authorize the Office 365 Outlook connector.
 - Deployment identity with:
-  - Permission to create tenant deployments.
+  - Permission to create deployments at the target management group, including `Microsoft.Resources/deployments/validate/action`.
   - Owner or User Access Administrator plus resource deployment permissions at the target management group.
   - Owner or equivalent permissions in the central subscription.
 
 ## Deploy
 
 1. Select **Deploy to Azure** above.
-2. Enter:
-   - **Management Group ID**: the management group name/ID, not its display name.
+2. In **Project details**, select the management group to govern. Select the tenant root management group to cover the full tenant.
+3. Enter:
    - **Central Subscription ID**: subscription that hosts the Logic App.
    - **Notification Email Addresses**: semicolon-separated recipients.
    - Optional CC recipients and naming settings.
-3. Keep `Deploy Remediation` enabled to cover subscriptions that already exist.
-4. Create the deployment.
-5. Authorize the Office 365 connection once:
+4. Keep `Deploy Remediation` enabled to cover subscriptions that already exist.
+5. Create the deployment.
+6. Authorize the Office 365 connection once:
 
    ```powershell
    .\scripts\authorize-office365.ps1 `
@@ -62,7 +62,7 @@ The automation selects:
 
    In the Azure portal page that opens, select **Edit API connection**, select **Authorize**, sign in to the sender mailbox, and save.
 
-6. Allow Azure Policy evaluation and remediation to finish. Defender assessment events are evaluation-driven and aren't guaranteed to be instantaneous.
+7. Allow Azure Policy evaluation and remediation to finish. Defender assessment events are evaluation-driven and aren't guaranteed to be instantaneous.
 
 ### CLI deployment
 
@@ -73,7 +73,7 @@ The automation selects:
   -NotificationEmailAddresses 'security@contoso.com;cloudops@contoso.com'
 ```
 
-Use `-Preview` first if you want a tenant deployment preview.
+Use `-Preview` first if you want a management-group deployment preview.
 
 ## Email contents
 
@@ -129,7 +129,7 @@ Use a real Azure resource ID under the governed management group so enrichment c
 .\scripts\validate.ps1
 ```
 
-The script validates JSON, recompiles Bicep, and checks the generated tenant template. Azure-side validation additionally requires access to the target scopes.
+The script validates JSON, recompiles Bicep, and checks the generated management-group template. Azure-side validation additionally requires access to the target scopes.
 
 ## Microsoft references
 

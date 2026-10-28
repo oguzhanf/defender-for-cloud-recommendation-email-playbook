@@ -25,13 +25,13 @@ $deploymentName = "mdc-recommendation-email-$((Get-Date).ToUniversalTime().ToStr
 az account show --output none
 
 $arguments = @(
-    'deployment', 'tenant',
+    'deployment', 'mg',
     $(if ($Preview) { 'what-if' } else { 'create' }),
+    '--management-group-id', $ManagementGroupId,
     '--name', $deploymentName,
     '--location', $Location,
     '--template-file', $templateFile,
     '--parameters',
-    "managementGroupId=$ManagementGroupId",
     "centralSubscriptionId=$CentralSubscriptionId",
     "notificationEmailAddresses=$NotificationEmailAddresses",
     "ccEmailAddresses=$CcEmailAddresses",
